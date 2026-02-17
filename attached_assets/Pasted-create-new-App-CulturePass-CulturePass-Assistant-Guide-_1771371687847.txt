@@ -1,0 +1,353 @@
+create new App CulturePass. CulturePass Assistant Guide
+
+Project Overview
+CulturePass is a full-stack cultural events platform for Kerala/Malayalee communities in Australia. It enables discovering and booking tickets for cultural events, connecting with local communities, and supporting cultural businesses. The app is built with Next.js 15 (App Router), TypeScript, Firebase, and Stripe.
+
+Live product: CulturePass.co
+
+Quick Reference
+npm run dev            # Start dev server (Turbopack, port 9002)
+npm run build          # Production build (NODE_ENV=production)
+npm run start          # Start production server
+npm run lint           # ESLint
+npm run typecheck      # TypeScript type checking (tsc --noEmit)
+npm run genkit:dev     # Start Genkit AI dev server
+npm run genkit:watch   # Start Genkit AI with watch mode
+
+Tech Stack
+Layer	Technology
+Framework	Next.js 15.5.x (App Router)
+Language	TypeScript 5 (strict mode)
+UI Library	React 19.2.x
+Component Library	shadcn/ui (40+ Radix UI primitives)
+Styling	Tailwind CSS 3.4.x with custom theme variables (HSL)
+Database	Firebase Firestore (real-time)
+Authentication	Firebase Auth (Email/Password + Google OAuth)
+Payments	Stripe (Elements, Payment Intents)
+Forms	React Hook Form + Zod validation
+Tables	TanStack React Table
+Charts	Recharts
+AI	Google Genkit with Gemini 2.5 Flash (scripts in package.json; src/ai/ not currently present)
+Hosting	Firebase App Hosting
+Project Structure
+src/
+├── app/                    # Next.js App Router pages
+│   ├── layout.tsx          # Root layout (providers, GA, metadata)
+│   ├── page.tsx            # Homepage (server component with Suspense)
+│   ├── providers.tsx       # Provider hierarchy wrapper (includes AffiliateTracker)
+│   ├── actions.ts          # ALL server actions (mutations)
+│   ├── globals.css         # Global styles + Tailwind + custom animations
+│   ├── global-error.tsx    # Global error boundary
+│   ├── not-found.tsx       # Custom 404 page
+│   ├── sitemap.ts          # Dynamic sitemap generation
+│   ├── _components/        # Homepage-specific components
+│   ├── about/              # Static about page
+│   ├── accounts/           # User account (7-tab interface)
+│   ├── activities/         # Community activity feed
+│   ├── admin/              # Super admin dashboard
+│   ├── artists/            # Artist profiles (CRUD + public listing)
+│   ├── calendar/           # Interactive event calendar
+│   ├── checkout/           # Multi-step Stripe checkout flow
+│   ├── community/          # Organisations directory + create
+│   ├── dashboard/          # Organiser dashboard (events, members, posts)
+│   ├── directory/          # Business directory (CRUD + listing)
+│   ├── events/             # Event listing + detail pages
+│   ├── movies/             # Weekly movies section
+│   ├── newsletter/         # API route for newsletter signup
+│   ├── notifications/      # User notifications
+│   ├── our-values/         # Static values/mission page
+│   ├── perks/              # Discount perks listing
+│   ├── play/               # Venue discovery
+│   ├── privacy/            # Privacy policy
+│   ├── profile/            # Profile redirect
+│   ├── sponsors/           # Sponsorship inquiry form
+│   ├── terms/              # Terms of service
+│   ├── tickets/            # User's purchased tickets
+│   ├── venues/             # Venue listings
+│   └── verify/             # CPID verification / entity registry lookup
+├── components/
+│   ├── ui/                 # shadcn/ui components (DO NOT manually edit)
+│   ├── auth/               # AuthModal (login/signup modal)
+│   ├── common/             # Header, Footer, NewsletterForm, SaveButton
+│   ├── FirebaseErrorListener.tsx
+│   └── FirebaseErrorToaster.tsx
+├── context/
+│   ├── index.ts
+│   └── AuthModalContext.tsx # Auth modal open/close state
+├── firebase/
+│   ├── auth/use-user.tsx   # useUser hook (auth state + profile)
+│   ├── firestore/          # useCollection, useDoc hooks
+│   ├── client-provider.tsx # Client-side Firebase init
+│   ├── config.ts           # Firebase project config
+│   ├── error-emitter.ts    # Pub/sub for permission errors
+│   ├── errors.ts           # FirestorePermissionError class
+│   ├── index.ts            # Firebase app initialization + getSdks export
+│   └── provider.tsx        # FirebaseProvider context
+├── hooks/
+│   ├── index.ts
+│   ├── use-mobile.tsx      # Mobile detection (< 768px)
+│   └── use-toast.ts        # Toast notification system
+└── lib/
+    ├── config.ts           # reCAPTCHA config + AFFILIATE_ID_KEY
+    ├── entity-config.ts    # CPID prefix config per entity type
+    ├── firebase-server.ts  # Server-side Firestore queries
+    ├── firebase-server-auth.ts # Server-side auth placeholder (not yet functional)
+    ├── index.ts
+    ├── placeholder-data.ts # Event categories, colors, locations
+    ├── placeholder-images.ts/json # Placeholder image URLs
+    ├── schemas.ts          # Zod validation schemas (all forms)
+    ├── types.ts            # TypeScript interfaces (all entities)
+    └── utils.ts            # cn() utility (clsx + tailwind-merge)
+
+Architecture & Key Patterns
+Provider Hierarchy
+RootLayout
+└── AppProviders (providers.tsx)
+    └── FirebaseClientProvider (initializes Firebase once)
+        └── AuthModalProvider (modal open/close state)
+            ├── AffiliateTracker (Suspense-wrapped, reads ?ref= param)
+            ├── {children}
+            ├── Toaster (toast notifications)
+            ├── FirebaseErrorListener (dev: throws to boundary)
+            └── FirebaseErrorToaster (prod: shows toast)
+
+Data Flow
+Server-side reads: Server Components call functions in lib/firebase-server.ts for initial page loads
+Client-side real-time: Client Components use useCollection/useDoc hooks for Firestore onSnapshot subscriptions
+Mutations: ALL writes go through Server Actions in app/actions.ts using the client Firestore SDK (via getSdks/initializeFirebase)
+Auth state: useUser() hook provides combined auth + profile document data
+Component Conventions
+Server Components by default — only add "use client" when interactivity is needed
+Page-specific components live in app/<route>/components/
+Homepage components live in app/_components/ (underscore prefix = Next.js private folder)
+Shared UI components go in components/ui/ (shadcn) or components/common/
+Each page directory typically has page.tsx + a components/ subdirectory
+Form Pattern
+All forms follow this pattern:
+
+Zod schema defined in lib/schemas.ts
+React Hook Form with zodResolver
+shadcn/ui form components (Form, FormField, FormItem, etc.)
+Server Action called on submit from app/actions.ts
+Toast notification on success/error
+Firebase Hooks
+// Single document subscription
+const { data, loading, error } = useDoc<Event>('events', eventId);
+
+// Collection query subscription
+const { data, loading, error } = useCollection<Event>(
+  query(collection(db, 'events'), where('published', '==', true))
+);
+
+// Current user with profile
+const { user, userProfile, loading } = useUser();
+
+CulturePass ID (CPID) System
+Every entity receives a unique, human-readable ID on creation. CPIDs are stored in a global cpids registry collection for lookup and verification.
+
+Entity	Prefix	Example
+User	CP-U-	CP-U-AB3K7N
+Artist	CP-AR-	CP-AR-XY9M2P
+Business	CP-B-	CP-B-QR4T8V
+Organisation	CP-ORG-	CP-ORG-LM6W3J
+Event	CP-E-	CP-E-FG2H5D
+Venue	CP-V-	CP-V-NK8C4R
+Perk	CP-PK-	CP-PK-ST7Y9Z
+Configuration lives in lib/entity-config.ts. The EntityType type is exported for use throughout the app. CPID generation logic is in app/actions.ts (generateUniqueCPID).
+
+Firestore Data Model
+Core Collections
+Collection	Entity	Key Fields
+users/{uid}	UserProfile	cpid, name, email, memberships, role_global, affiliateId, savedItems
+events/{eventId}	Event	cpid, title, category, startDate, orgId, published, trending, featured
+organisations/{orgId}	Organisation	cpid, name, slug, city, status
+organisations/{orgId}/members/{uid}	Membership	role (member/admin/president/secretary/treasurer)
+organisations/{orgId}/events/{eventId}	Event (org copy)	Duplicate of public event
+organisations/{orgId}/events/{eventId}/ticketTypes/{id}	TicketType	name, price, quantity, sold
+organisations/{orgId}/posts/{postId}	Post	content, authorId, likeCount
+artists/{artistId}	Artist	cpid, name, genre, slug, status, featured
+businesses/{businessId}	Business	cpid, name, categories, ownerId, status, isSponsor
+venues/{venueId}	Venue	cpid, name, slug, ownerId, ownerType, city, capacity
+orders/{orderId}	Order	userId, eventId, amount, stripePaymentIntentId, customerDetails
+perks/{perkId}	Perk	title, businessName, code, status
+cpids/{cpid}	CPID Registry	cpid, entityType, entityId, createdAt
+Data Schema Reference
+Full schema definitions are in docs/backend.json (25 entities with JSON Schema). This is the single source of truth for data modeling.
+
+Security Rules
+Firestore rules are in firestore.rules. Key helpers:
+
+isAuthenticated() — user is logged in
+isOwner(userId) — user owns the resource
+isSuperAdmin() — hardcoded admin UIDs
+isOrgAdmin(orgId) — user is admin of the organisation
+isBusinessOwner(businessId) — user owns the business
+Storage rules are in storage.rules.
+
+Super Admin UIDs (hardcoded)
+jQUz8YHqLxOUYgIiMxr6vZC3vT72
+6SlcJXbFb2TJjfRknugGnNPfvOA2
+
+These are checked in Firestore rules, client-side code (admin/page.tsx), and server actions (actions.ts).
+
+Route Map
+Public Routes
+/ — Homepage (server component with Suspense)
+/events — Event listing with filtering
+/events/[id] — Event detail + booking
+/calendar — Interactive event calendar
+/community — Community/organisation directory
+/directory — Business directory
+/artists — Artist listing
+/artists/[slug] — Artist profile
+/movies — Weekly movies
+/perks — Discount perks
+/venues, /play — Venue discovery
+/verify/[id] — CPID verification / entity registry lookup
+/about, /our-values, /privacy, /terms — Static pages
+/sponsors — Sponsorship inquiry form
+Authenticated Routes
+/accounts — User account (profile, tickets, communities, creations, activity, saved, linked tabs)
+/profile — Profile alias
+/tickets — Purchased tickets
+/checkout — Multi-step Stripe checkout
+/activities — Activity feed
+/notifications/[id] — Notification detail
+Organiser Routes (requires org admin role)
+/dashboard — Organiser hub with org selector
+/dashboard/events/create — Create event
+/dashboard/events/[id]/edit — Edit event
+Admin Routes (super admin only)
+/admin — Platform admin dashboard (orgs, artists, businesses, users, perks, settings)
+/admin/perks/create — Create perk
+/admin/perks/[id]/edit — Edit perk
+/admin/users/[id]/edit — Edit user profile
+Creation Routes (authenticated)
+/community/create — Create organisation
+/artists/create — Register as artist
+/artists/[id]/edit — Edit artist
+/directory/create — List business
+/directory/[id]/edit — Edit business
+Server Actions Reference (app/actions.ts)
+All mutations are server actions. Complete list:
+
+Action	Description
+handleSponsorshipRequest(prevState, formData)	Validates and processes sponsorship inquiry form
+createEvent(orgId, createdBy, values)	Creates event in org subcollection + public events + CPID
+updateEvent(orgId, eventId, values)	Updates both copies + replaces ticket types
+deleteEvent(orgId, eventId)	Deletes both copies + ticket types + CPID
+createPost(orgId, authorId, values)	Creates community post
+toggleLikePost(orgId, postId, userId)	Transaction-based like toggle
+createPaymentIntent(amount)	Creates Stripe payment intent (AUD currency)
+createOrder(orderData)	Creates order with transaction (prevents overselling)
+joinCommunityAction(orgId, user)	User joins org as member
+createNewUserDocument(userData)	Creates user profile doc + CPID on first login
+createOrganisation(values, user)	Creates org + member + CPID + updates user memberships
+updateOrganisation(orgId, values)	Updates organisation details
+createArtist(values, user)	Creates artist profile + CPID
+updateArtist(artistId, values, user)	Updates artist (owner check)
+deleteArtist(artistId, user)	Deletes artist + CPID (owner check)
+createBusiness(values, user)	Lists new business + CPID
+updateBusiness(businessId, values, user)	Updates business (owner check)
+deleteBusiness(businessId, user)	Deletes business + CPID (owner check)
+updateEntityStatus(collection, docId, status)	Admin: approve/reject entities
+updateUserRole(userId, role)	Admin: change user role (protects primary admins)
+updateMyProfile(userId, values)	User: update own profile (name, phone, social)
+createPerk(values)	Admin: create discount perk
+updatePerk(perkId, values)	Admin: update perk
+deletePerk(perkId)	Admin: delete perk
+setFeaturedEvent(eventId)	Admin: feature one event (un-features others)
+setFeaturedArtists(artistIds[])	Admin: feature multiple artists
+saveItem(userId, entityId, entityType)	Save event/artist/business to user profile
+unsaveItem(userId, entityId, entityType)	Remove saved item from user profile
+updateUserProfileByAdmin(userId, values)	Admin: edit user profile + role
+Type Definitions (lib/types.ts)
+All entity types:
+
+Type	Description
+WithId<T>	Generic wrapper adding id: string to Firestore documents
+Post	Community post with likes/comments
+Organisation	Community org with cpid, slug, status
+UserProfile	User with cpid, memberships, savedItems, affiliateId
+Notification	Push notification types
+Event	Cultural event with cpid, dual-storage fields
+Order	Ticket order with customerDetails
+Business	Business listing with cpid, sponsor tier
+Artist	Artist/band profile with cpid
+Venue	Physical venue with cpid, geo, capacity, pricing
+BookableSpace	Sub-space within a venue
+Slot	Time slot for venue bookings
+VenueBooking	Booking record for venue spaces
+TicketType	Event ticket tier (name, price, quantity, sold)
+Perk	Discount perk with code
+ServicePackage	Business service package with pricing
+Service	Business service listing
+Booking	Service booking record
+Certificate	Verified/premium/cultural excellence cert
+Validation Schemas (lib/schemas.ts)
+All forms are validated with Zod. Complete list:
+
+ticketSchema — Ticket type definition (name, price, quantity)
+eventSchema — Event creation/editing (includes nested tickets array)
+postSchema — Community post (10-500 chars)
+organisationSchema — Organisation details
+CustomerDetailsSchema — Checkout customer info
+orderSchema — Full order validation
+artistSchema — Artist profile
+businessSchema — Business listing
+perkSchema — Discount perk
+adminProfileSchema — User profile editing (name, phone, social)
+servicePackageSchema — Business service package
+serviceSchema — Business service listing
+bookingSchema — Service booking
+Styling Conventions
+Tailwind CSS with custom theme variables (HSL format) defined in globals.css
+Dark mode supported via class strategy (but not actively toggled in UI)
+Color tokens: bg-background, bg-card, bg-secondary, text-foreground, text-muted-foreground, border
+Responsive breakpoints: md: (768px), lg: (1024px)
+Custom animations: fadeIn, slideDown, scaleIn (defined in globals.css)
+Class composition: Always use cn() from lib/utils.ts for conditional classes
+shadcn/ui components in components/ui/ — do not manually edit, use npx shadcn@latest add <component>
+Build Configuration
+next.config.ts: TypeScript errors (ignoreBuildErrors: false) and ESLint errors (ignoreDuringBuilds: false) will fail the build. Always run npm run typecheck and npm run lint before pushing.
+Source maps: productionBrowserSourceMaps: true — production source maps are enabled for debugging.
+Allowed image domains: placehold.co, images.unsplash.com, picsum.photos
+Path Aliases
+Defined in tsconfig.json:
+
+Alias	Path
+@/*	./src/*
+@lib/*	./src/lib/*
+@hooks/*	./src/hooks/*
+@components/*	./src/components/*
+Prefer @/ for consistency (e.g., @/lib/types, @/components/ui/button).
+
+Environment Variables
+STRIPE_SECRET_KEY          # Stripe server-side key (used in actions.ts)
+# Firebase config is hardcoded in src/firebase/config.ts (public keys)
+# Google Analytics ID is hardcoded in layout.tsx: G-L7L3XPF0BG
+# reCAPTCHA site key is hardcoded in lib/config.ts
+
+Key Documentation
+docs/architecture.md — Frontend/backend architecture decisions
+docs/product-specification.md — Full product spec, vision, and roadmap
+docs/backend.json — Complete Firestore data schema (source of truth)
+docs/blueprint.md — Original project blueprint and design guidelines
+docs/deployment_checklist.md — Deployment checklist
+Important Conventions for AI Assistants
+Australian English — Use "organisation" (not "organization"), "colour", "favourite", etc.
+All mutations via Server Actions — Never write directly to Firestore from client components; always use app/actions.ts.
+Events are dual-stored — Events exist in both events/{id} (public) and organisations/{orgId}/events/{id} (org copy). Both must be updated together.
+CPID on entity creation — All new entities (users, events, orgs, artists, businesses, venues, perks) must generate a CPID using generateUniqueCPID() and register it in the cpids collection.
+Type safety — All entity types are in lib/types.ts. Use WithId<T> for documents fetched from Firestore.
+Form validation — All schemas in lib/schemas.ts. Use Zod + React Hook Form + shadcn Form components.
+No Firebase Admin SDK — The app uses the client Firebase SDK throughout. Server actions use getSdks(initializeFirebase().firebaseApp) to get the Firestore instance.
+Build strictness — next.config.ts does NOT ignore TypeScript or ESLint errors. Run npm run typecheck and npm run lint before committing.
+Path alias — Use @/ to reference src/ (e.g., @/lib/types, @/components/ui/button). Additional aliases @lib/*, @hooks/*, @components/* exist but @/ is preferred for consistency.
+Page component pattern — Each route has page.tsx with page-specific components in a sibling components/ directory. Homepage components use _components/ (Next.js private folder convention).
+Permission errors — Firebase permission errors are caught by hooks and emitted via the error emitter system. In dev they throw to the error boundary; in prod they show toasts.
+Placeholder images — Use lib/placeholder-images.ts for fallback images. Remote images allowed from placehold.co, images.unsplash.com, picsum.photos.
+Category system — Event categories (music, comedy, heritage, festival, movies, etc.) with icons and colors are defined in lib/placeholder-data.ts.
+Saved items — Users can save events, artists, and businesses. Use saveItem/unsaveItem server actions. Saved IDs are stored in userProfile.savedItems.
+Owner checks on mutations — Update/delete actions for artists and businesses verify createdBy/ownerId matches the current user before proceeding.
+Primary admin protection — The two super admin UIDs cannot have their roles downgraded. This is enforced in both updateUserRole and updateUserProfileByAdmin.
