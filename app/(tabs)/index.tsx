@@ -9,12 +9,14 @@ import {
   StyleSheet,
   Platform,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import EventCard from "@/components/EventCard";
 import CategoryFilter from "@/components/CategoryFilter";
@@ -22,15 +24,13 @@ import SectionHeader from "@/components/SectionHeader";
 import CommunityCard from "@/components/CommunityCard";
 import ArtistCard from "@/components/ArtistCard";
 import {
-  getEvents,
-  getFeaturedEvents,
-  getTrendingEvents,
-  getOrganisations,
-  getFeaturedArtists,
   type EventCategory,
   type Event,
+  type Organisation,
+  type Artist,
 } from "@/lib/data";
 import { getSavedEventIds, toggleSaveEvent } from "@/lib/storage";
+import { queryClient } from "@/lib/query-client";
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
@@ -39,11 +39,13 @@ export default function DiscoverScreen() {
   const [savedEvents, setSavedEvents] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const allEvents = getEvents();
-  const featuredEvents = getFeaturedEvents();
-  const trendingEvents = getTrendingEvents();
-  const organisations = getOrganisations().slice(0, 5);
-  const featuredArtists = getFeaturedArtists();
+  const { data: allEvents = [], isLoading: loadingEvents } = useQuery<Event[]>({ queryKey: ['/api/events'] });
+  const { data: featuredEvents = [] } = useQuery<Event[]>({ queryKey: ['/api/events/featured'] });
+  const { data: trendingEvents = [] } = useQuery<Event[]>({ queryKey: ['/api/events/trending'] });
+  const { data: allOrganisations = [] } = useQuery<Organisation[]>({ queryKey: ['/api/organisations'] });
+  const { data: featuredArtists = [] } = useQuery<Artist[]>({ queryKey: ['/api/artists/featured'] });
+
+  const organisations = allOrganisations.slice(0, 5);
 
   useEffect(() => {
     getSavedEventIds().then(setSavedEvents);
@@ -58,9 +60,11 @@ export default function DiscoverScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    getSavedEventIds().then(ids => {
-      setSavedEvents(ids);
-      setRefreshing(false);
+    queryClient.invalidateQueries().then(() => {
+      getSavedEventIds().then(ids => {
+        setSavedEvents(ids);
+        setRefreshing(false);
+      });
     });
   }, []);
 
@@ -73,6 +77,8 @@ export default function DiscoverScreen() {
   });
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
+
+  if (loadingEvents) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
 
   return (
     <ScrollView

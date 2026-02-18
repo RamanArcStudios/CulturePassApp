@@ -6,16 +6,18 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import CommunityCard from "@/components/CommunityCard";
 import BusinessCard from "@/components/BusinessCard";
 import ArtistCard from "@/components/ArtistCard";
 import SectionHeader from "@/components/SectionHeader";
-import { getOrganisations, getBusinesses, getArtists } from "@/lib/data";
+import { type Organisation, type Business, type Artist } from "@/lib/data";
 
 type TabKey = "organisations" | "businesses" | "artists";
 
@@ -29,11 +31,14 @@ export default function CommunityScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>("organisations");
 
-  const organisations = getOrganisations();
-  const businesses = getBusinesses();
-  const artists = getArtists();
+  const { data: organisations = [], isLoading: loadingOrgs } = useQuery<Organisation[]>({ queryKey: ['/api/organisations'] });
+  const { data: businesses = [], isLoading: loadingBiz } = useQuery<Business[]>({ queryKey: ['/api/businesses'] });
+  const { data: artists = [], isLoading: loadingArtists } = useQuery<Artist[]>({ queryKey: ['/api/artists'] });
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
+
+  const isLoading = loadingOrgs || loadingBiz || loadingArtists;
+  if (isLoading) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
 
   return (
     <ScrollView

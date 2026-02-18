@@ -6,13 +6,15 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import EventCard from "@/components/EventCard";
-import { getEvents, getDatesWithEvents, type Event } from "@/lib/data";
+import { type Event } from "@/lib/data";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -26,8 +28,10 @@ export default function CalendarScreen() {
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 2, 1));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const allEvents = getEvents();
-  const eventDates = useMemo(() => new Set(getDatesWithEvents()), []);
+  const { data: allEvents = [], isLoading: loadingEvents } = useQuery<Event[]>({ queryKey: ['/api/events'] });
+  const { data: eventDatesArray = [], isLoading: loadingDates } = useQuery<string[]>({ queryKey: ['/api/events/dates'] });
+
+  const eventDates = useMemo(() => new Set(eventDatesArray), [eventDatesArray]);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -72,6 +76,8 @@ export default function CalendarScreen() {
   }, [year, month]);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
+
+  if (loadingEvents || loadingDates) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
 
   return (
     <ScrollView

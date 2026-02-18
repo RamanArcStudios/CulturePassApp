@@ -5,19 +5,21 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import EventCard from "@/components/EventCard";
 import CategoryFilter from "@/components/CategoryFilter";
-import { getEvents, type EventCategory } from "@/lib/data";
+import { type EventCategory, type Event } from "@/lib/data";
 import { getSavedEventIds, toggleSaveEvent } from "@/lib/storage";
 
 export default function AllEventsScreen() {
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(null);
   const [savedEvents, setSavedEvents] = useState<string[]>([]);
 
-  const allEvents = getEvents();
+  const { data: allEvents = [], isLoading } = useQuery<Event[]>({ queryKey: ['/api/events'] });
 
   useEffect(() => {
     getSavedEventIds().then(setSavedEvents);
@@ -33,6 +35,8 @@ export default function AllEventsScreen() {
   const filteredEvents = selectedCategory
     ? allEvents.filter(e => e.category === selectedCategory)
     : allEvents;
+
+  if (isLoading) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
 
   return (
     <ScrollView

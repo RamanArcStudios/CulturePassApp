@@ -7,14 +7,16 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import EventCard from "@/components/EventCard";
-import { getEvents, type Event } from "@/lib/data";
+import { type Event } from "@/lib/data";
 import { getSavedEventIds, toggleSaveEvent, getUserProfile, type UserProfile } from "@/lib/storage";
 
 type ProfileTab = "saved" | "tickets" | "communities";
@@ -25,7 +27,7 @@ export default function ProfileScreen() {
   const [savedEventIds, setSavedEventIds] = useState<string[]>([]);
   const [profile, setProfile] = useState<any>(null);
 
-  const allEvents = getEvents();
+  const { data: allEvents = [], isLoading } = useQuery<Event[]>({ queryKey: ['/api/events'] });
 
   useEffect(() => {
     getSavedEventIds().then(setSavedEventIds);
@@ -50,6 +52,8 @@ export default function ProfileScreen() {
     { icon: "help-circle-outline", label: "Help & Support", action: () => {} },
     { icon: "information-circle-outline", label: "About CulturePass", action: () => {} },
   ];
+
+  if (isLoading) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
 
   return (
     <ScrollView

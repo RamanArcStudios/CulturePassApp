@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,8 +15,9 @@ import { Image } from "expo-image";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
-import { getEventById, CATEGORY_COLORS } from "@/lib/data";
+import { CATEGORY_COLORS, type Event } from "@/lib/data";
 import { getSavedEventIds, toggleSaveEvent } from "@/lib/storage";
 
 export default function EventDetailScreen() {
@@ -23,7 +25,7 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const [isSaved, setIsSaved] = useState(false);
 
-  const event = getEventById(id!);
+  const { data: event, isLoading } = useQuery<Event>({ queryKey: ['/api/events', id] });
 
   useEffect(() => {
     getSavedEventIds().then(ids => setIsSaved(ids.includes(id!)));
@@ -40,6 +42,8 @@ export default function EventDetailScreen() {
     Alert.alert("Booking", "Ticket booking will be available soon. Stay tuned!");
   }, []);
 
+  if (isLoading) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
+
   if (!event) {
     return (
       <View style={styles.notFound}>
@@ -53,8 +57,8 @@ export default function EventDetailScreen() {
   }
 
   const categoryColor = CATEGORY_COLORS[event.category] || Colors.light.primary;
-  const spotsLeft = event.ticketsAvailable - event.ticketsSold;
-  const soldPercent = Math.round((event.ticketsSold / event.ticketsAvailable) * 100);
+  const spotsLeft = (event.ticketsAvailable ?? 0) - (event.ticketsSold ?? 0);
+  const soldPercent = event.ticketsAvailable ? Math.round(((event.ticketsSold ?? 0) / event.ticketsAvailable) * 100) : 0;
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + "T00:00:00");
     return d.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" });

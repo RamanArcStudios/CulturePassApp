@@ -5,19 +5,23 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import PerkCard from "@/components/PerkCard";
-import { getPerks } from "@/lib/data";
+import { type Perk } from "@/lib/data";
 
 export default function PerksScreen() {
   const insets = useSafeAreaInsets();
-  const perks = getPerks();
+  const { data: perks = [], isLoading } = useQuery<Perk[]>({ queryKey: ['/api/perks'] });
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
+
+  if (isLoading) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
 
   return (
     <ScrollView
