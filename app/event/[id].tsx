@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  Modal,
   ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, router, useNavigation } from "expo-router";
@@ -37,6 +38,9 @@ export default function EventDetailScreen() {
 
   const { data: event, isLoading } = useQuery<Event>({ queryKey: ['/api/events', id] });
 
+  const [showBookModal, setShowBookModal] = useState(false);
+  const [bookingStatus, setBookingStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
   const savedEventIds: string[] = user?.savedEvents ?? [];
   const isSaved = savedEventIds.includes(id!);
 
@@ -60,31 +64,25 @@ export default function EventDetailScreen() {
       return;
     }
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      "Book Tickets",
-      `Confirm booking for ${event?.title}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Confirm",
-          onPress: async () => {
-            try {
-              await apiRequest("POST", "/api/orders", {
-                eventId: id,
-                quantity: 1,
-                totalPrice: event?.price || 0,
-                status: "confirmed",
-              });
-              queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
-              Alert.alert("Success", "Ticket booked successfully!");
-            } catch {
-              Alert.alert("Error", "Failed to book ticket");
-            }
-          },
-        },
-      ]
-    );
-  }, [id, event, isAuthenticated]);
+    setBookingStatus("idle");
+    setShowBookModal(true);
+  }, [isAuthenticated]);
+
+  const confirmBooking = useCallback(async () => {
+    setBookingStatus("loading");
+    try {
+      await apiRequest("POST", "/api/orders", {
+        eventId: id,
+        quantity: 1,
+        amount: event?.price || 0,
+        status: "confirmed",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      setBookingStatus("success");
+    } catch {
+      setBookingStatus("error");
+    }
+  }, [id, event]);
 
   if (isLoading) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
 
@@ -234,6 +232,95 @@ export default function EventDetailScreen() {
           </LinearGradient>
         </Pressable>
       </View>
+
+      <Modal
+        visible={showBookModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setShowBookModal(false); setBookingStatus("idle"); }}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => { if (bookingStatus !== "loading") { setShowBookModal(false); setBookingStatus("idle"); } }}
+        >
+          <Pressable style={styles.modalContent} onPress={() => {}}>
+            {bookingStatus === "success" ? (
+              <>
+                <View style={styles.modalIconCircle}>
+                  <Ionicons name="checkmark-circle" size={48} color="#4CAF50" />
+                </View>
+                <Text style={styles.modalTitle}>Booking Confirmed!</Text>
+                <Text style={styles.modalMessage}>Your ticket for {event.title} has been booked.</Text>
+                <Pressable
+                  onPress={() => { setShowBookModal(false); setBookingStatus("idle"); }}
+                  style={({ pressed }) => [styles.modalConfirmBtn, { opacity: pressed ? 0.9 : 1 }]}
+                >
+                  <LinearGradient colors={[Colors.light.primary, Colors.light.primaryDark]} style={styles.modalBtnGradient}>
+                    <Text style={styles.modalBtnText}>Done</Text>
+                  </LinearGradient>
+                </Pressable>
+              </>
+            ) : bookingStatus === "error" ? (
+              <>
+                <View style={styles.modalIconCircle}>
+                  <Ionicons name="close-circle" size={48} color="#F44336" />
+                </View>
+                <Text style={styles.modalTitle}>Booking Failed</Text>
+                <Text style={styles.modalMessage}>Something went wrong. Please try again.</Text>
+                <View style={styles.modalBtnRow}>
+                  <Pressable
+                    onPress={() => { setShowBookModal(false); setBookingStatus("idle"); }}
+                    style={({ pressed }) => [styles.modalCancelBtn, { opacity: pressed ? 0.8 : 1 }]}
+                  >
+                    <Text style={styles.modalCancelText}>Close</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={confirmBooking}
+                    style={({ pressed }) => [styles.modalConfirmBtn, { opacity: pressed ? 0.9 : 1 }]}
+                  >
+                    <LinearGradient colors={[Colors.light.primary, Colors.light.primaryDark]} style={styles.modalBtnGradient}>
+                      <Text style={styles.modalBtnText}>Retry</Text>
+                    </LinearGradient>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.modalIconCircle}>
+                  <Ionicons name="ticket" size={36} color={Colors.light.primary} />
+                </View>
+                <Text style={styles.modalTitle}>Book Tickets</Text>
+                <Text style={styles.modalMessage}>Confirm booking for {event.title}?</Text>
+                <View style={styles.modalPriceRow}>
+                  <Text style={styles.modalPriceLabel}>Total</Text>
+                  <Text style={styles.modalPriceValue}>${event.price} AUD</Text>
+                </View>
+                <View style={styles.modalBtnRow}>
+                  <Pressable
+                    onPress={() => { setShowBookModal(false); setBookingStatus("idle"); }}
+                    style={({ pressed }) => [styles.modalCancelBtn, { opacity: pressed ? 0.8 : 1 }]}
+                  >
+                    <Text style={styles.modalCancelText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={confirmBooking}
+                    disabled={bookingStatus === "loading"}
+                    style={({ pressed }) => [styles.modalConfirmBtn, { opacity: pressed ? 0.9 : 1 }]}
+                  >
+                    <LinearGradient colors={[Colors.light.primary, Colors.light.primaryDark]} style={styles.modalBtnGradient}>
+                      {bookingStatus === "loading" ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.modalBtnText}>Confirm</Text>
+                      )}
+                    </LinearGradient>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -473,5 +560,98 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Poppins_600SemiBold",
     color: Colors.light.primary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 28,
+    width: "100%",
+    maxWidth: 360,
+    alignItems: "center",
+  },
+  modalIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.light.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "Poppins_700Bold",
+    color: Colors.light.text,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    fontFamily: "Poppins_400Regular",
+    color: Colors.light.textSecondary,
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  modalPriceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    backgroundColor: Colors.light.surfaceElevated,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
+  modalPriceLabel: {
+    fontSize: 14,
+    fontFamily: "Poppins_500Medium",
+    color: Colors.light.textSecondary,
+  },
+  modalPriceValue: {
+    fontSize: 18,
+    fontFamily: "Poppins_700Bold",
+    color: Colors.light.text,
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: Colors.light.surfaceElevated,
+    alignItems: "center",
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontFamily: "Poppins_600SemiBold",
+    color: Colors.light.textSecondary,
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  modalBtnGradient: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBtnText: {
+    fontSize: 15,
+    fontFamily: "Poppins_700Bold",
+    color: "#fff",
   },
 });
