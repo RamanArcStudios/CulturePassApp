@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -24,6 +24,8 @@ type AuthMode = "login" | "signup";
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const { login, register } = useAuth();
+  const navigation = useNavigation();
+  const goBack = () => navigation.canGoBack() ? router.back() : router.replace("/");
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -66,7 +68,7 @@ export default function AuthScreen() {
         });
       }
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      goBack();
     } catch (err: any) {
       const msg = err.message || "Something went wrong";
       if (msg.includes("409")) {
@@ -104,7 +106,7 @@ export default function AuthScreen() {
           colors={[Colors.light.secondary, Colors.light.secondaryLight]}
           style={[styles.headerGradient, { paddingTop: insets.top + webTopInset + 16 }]}
         >
-          <Pressable onPress={() => router.back()} style={styles.closeBtn}>
+          <Pressable onPress={goBack} style={styles.closeBtn}>
             <Ionicons name="close" size={24} color="#fff" />
           </Pressable>
           <View style={styles.headerContent}>

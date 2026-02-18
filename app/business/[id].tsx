@@ -9,7 +9,7 @@ import {
   Linking,
   ActivityIndicator,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +22,8 @@ import type { Business } from "@/lib/data";
 export default function BusinessDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const goBack = () => navigation.canGoBack() ? router.back() : router.replace("/");
 
   const { data: business, isLoading } = useQuery<Business>({ queryKey: ['/api/businesses', id] });
 
@@ -38,7 +40,7 @@ export default function BusinessDetailScreen() {
       <View style={styles.notFound}>
         <Ionicons name="alert-circle" size={48} color={Colors.light.textTertiary} />
         <Text style={styles.notFoundText}>Business not found</Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable onPress={goBack}>
           <Text style={styles.backLink}>Go Back</Text>
         </Pressable>
       </View>
@@ -69,7 +71,7 @@ export default function BusinessDetailScreen() {
           style={StyleSheet.absoluteFill}
         />
         <Pressable
-          onPress={() => router.back()}
+          onPress={goBack}
           style={[styles.backBtn, { top: insets.top + webTopInset + 8 }]}
         >
           <Ionicons name="arrow-back" size={22} color="#fff" />

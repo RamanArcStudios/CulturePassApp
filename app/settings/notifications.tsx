@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useNavigation } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 
@@ -82,6 +82,8 @@ const SECTIONS: { title: string; items: NotifSetting[] }[] = [
 
 export default function NotificationsSettingsScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const goBack = () => navigation.canGoBack() ? router.back() : router.replace("/profile");
   const [settings, setSettings] = useState<Record<string, boolean>>({
     eventReminders: true,
     newEvents: true,
@@ -102,7 +104,7 @@ export default function NotificationsSettingsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + webTopInset + 12 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={goBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={Colors.light.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Notifications</Text>

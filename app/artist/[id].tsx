@@ -8,7 +8,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +20,8 @@ import type { Artist } from "@/lib/data";
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const goBack = () => navigation.canGoBack() ? router.back() : router.replace("/");
 
   const { data: artist, isLoading } = useQuery<Artist>({ queryKey: ['/api/artists', id] });
 
@@ -36,7 +38,7 @@ export default function ArtistDetailScreen() {
       <View style={styles.notFound}>
         <Ionicons name="alert-circle" size={48} color={Colors.light.textTertiary} />
         <Text style={styles.notFoundText}>Artist not found</Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable onPress={goBack}>
           <Text style={styles.backLink}>Go Back</Text>
         </Pressable>
       </View>
@@ -58,7 +60,7 @@ export default function ArtistDetailScreen() {
           style={StyleSheet.absoluteFill}
         />
         <Pressable
-          onPress={() => router.back()}
+          onPress={goBack}
           style={[styles.backBtn, { top: insets.top + webTopInset + 8 }]}
         >
           <Ionicons name="arrow-back" size={22} color="#fff" />

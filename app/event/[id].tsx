@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -25,6 +25,15 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated } = useAuth();
+  const navigation = useNavigation();
+
+  const goBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/");
+    }
+  }, [navigation]);
 
   const { data: event, isLoading } = useQuery<Event>({ queryKey: ['/api/events', id] });
 
@@ -84,7 +93,7 @@ export default function EventDetailScreen() {
       <View style={styles.notFound}>
         <Ionicons name="alert-circle" size={48} color={Colors.light.textTertiary} />
         <Text style={styles.notFoundText}>Event not found</Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable onPress={goBack}>
           <Text style={styles.backLink}>Go Back</Text>
         </Pressable>
       </View>
@@ -114,7 +123,7 @@ export default function EventDetailScreen() {
             style={StyleSheet.absoluteFill}
           />
           <Pressable
-            onPress={() => router.back()}
+            onPress={goBack}
             style={[styles.backBtn, { top: insets.top + webTopInset + 8 }]}
           >
             <Ionicons name="arrow-back" size={22} color="#fff" />
