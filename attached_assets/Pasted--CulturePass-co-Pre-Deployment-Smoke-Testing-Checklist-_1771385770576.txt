@@ -1,0 +1,129 @@
+# CulturePass.co - Pre-Deployment & Smoke Testing Checklist
+
+
+This checklist is designed to be used before deploying a new version of the application and for smoke testing immediately after deployment. It ensures all critical paths and features are working as expected.
+
+
+---
+
+
+## ✅ Core Features & User Flows
+
+
+### 1. Authentication & User Accounts
+- [ ] **Sign Up**: Can a new user sign up with email/password?
+- [ ] **Sign Up (Google)**: Can a new user sign up with Google OAuth?
+- [ ] **Login/Logout**: Can a user log in and out successfully?
+- [ ] **Profile Update**: Can a user update their profile information in the "My Account" page?
+- [ ] **Auth Modal**: Does the login/signup modal appear when a guest tries to perform a protected action (e.g., save an item)?
+- [ ] **Email Verification**: Is the email verification banner shown for new, unverified accounts?
+
+
+### 2. Event Discovery & Booking
+- [ ] **Homepage**: Does the homepage load correctly with featured content (events, artists)?
+- [ ] **Events Page**: Can users view the list of all events?
+- [ ] **Event Detail Page**: Can users view the details of a single event?
+- [ ] **Category Filtering**: Does filtering events by category work on the homepage?
+- [ ] **Search**: Does searching for events on the `/events` page work correctly?
+- [ ] **Checkout Flow**: Can a logged-in user successfully complete the ticket booking process?
+ - [ ] Step 1: Customer Details submission works.
+ - [ ] Step 2: Stripe payment element loads and processes payment.
+ - [ ] Step 3: Success screen is shown with an order number.
+- [ ] **My Tickets**: Does the purchased ticket appear in the user's "My Tickets" tab?
+- [ ] **Save/Unsave Event**: Can a user save and unsave an event? Does it appear in their "Saved" tab?
+
+
+### 3. Community & Organisations
+- [ ] **Community Directory**: Can users view the list of all organisations?
+- [ ] **Community Detail Page**: Can users view the public detail page for a single organisation?
+- [ ] **Join Community**: Can a logged-in user join a community?
+- [ ] **My Communities**: Does the joined community appear in the user's "Communities" tab?
+- [ ] **Activity Feed**: Do posts from joined communities appear in the `/activities` feed and the "Activity" tab in "My Account"?
+- [ ] **Liking Posts**: Can a user like and unlike a post in the activity feed?
+
+
+### 4. Directory & Artists
+- [ ] **Artist Directory**: Can users view the list of all artists?
+- [ ] **Artist Detail Page**: Can users view the details of a single artist?
+- [ ] **Business Directory**: Can users view the list of all businesses?
+- [ ] **Business Detail Page**: Can users view the details of a single business?
+- [ ] **Save/Unsave**: Can users save and unsave artists and businesses?
+
+
+---
+
+
+## 📝 CRUD Operations (Content Creation & Management)
+
+
+### 1. Creation (User)
+- [ ] **Create Organisation**: Can a logged-in user submit the "Create Community" form? Does it appear in the admin "Pending Approvals"?
+- [ ] **Create Artist Profile**: Can a user submit the "Create Artist Profile" form? Does it appear for admin approval?
+- [ ] **Create Business Listing**: Can a user submit the "List Your Business" form? Does it appear for admin approval?
+
+
+### 2. Editing (Owner)
+- [ ] **Edit Artist**: Can a user who created an artist profile edit its details from the "My Creations" tab?
+- [ ] **Edit Business**: Can a user who owns a business listing edit its details?
+
+
+### 3. Deletion (Owner)
+- [ ] **Delete Artist**: Can a user delete an artist profile they created?
+- [ ] **Delete Business**: Can a user delete a business listing they own?
+
+
+---
+
+
+## 👑 Role-Based Access Control (RBAC)
+
+
+### 1. Organiser Dashboard
+- [ ] **Dashboard Access**: Does a user who is an `admin` of an organisation see the Organiser Dashboard?
+- [ ] **Org Selector**: If a user is an admin of multiple orgs, are they prompted to select one?
+- [ ] **Event Creation**: Can an org admin create a new event for their organisation?
+- [ ] **Event Editing**: Can an org admin edit an existing event for their organisation?
+- [ ] **Event Deletion**: Can an org admin delete an event?
+- [ ] **Member List**: Can an org admin view the list of members for their organisation?
+- [ ] **Create Post**: Can an org admin create a new post/announcement?
+
+
+### 2. Super Admin Dashboard
+- [ ] **Dashboard Access**: Is the `/admin` route correctly restricted to Super Admins only?
+- [ ] **Pending Approvals**: Can a super admin see pending organisations, artists, and businesses?
+- [ ] **Approve/Reject**: Can a super admin approve or reject a pending item? Does the item's status update correctly?
+- [ ] **User Management**: Can a super admin view the list of all users?
+- [ ] **Role Change**: Can a super admin change a user's role (e.g., from `user` to `super_admin`)?
+- [ ] **Perk Management**:
+ - [ ] Can a super admin create a new perk?
+ - [ ] Can a super admin edit an existing perk?
+ - [ ] Can a super admin delete a perk?
+- [ ] **Featured Content**: Can a super admin set the featured event and featured artists?
+
+
+---
+
+
+## 🛠️ Technical & UX Checks
+
+
+### 1. Site-wide
+- [ ] **Responsiveness**: All pages are usable and look correct on mobile, tablet, and desktop.
+- [ ] **Links**: All navigation links in the Header and Footer work correctly.
+- [ ] **404 Page**: Accessing a non-existent URL correctly shows the custom 404 page.
+- [ ] **SEO**: The `sitemap.ts` generates correctly and key pages have correct `<title>` and `<meta description>` tags.
+- [ ] **Image Loading**: Images load correctly, and placeholders are used where appropriate.
+- [ ] **No Console Errors**: The browser developer console is free of critical errors (especially hydration errors).
+
+
+### 2. Firebase
+- [ ] **Firestore Reads**: All real-time data on pages like the Activity Feed and Dashboards load correctly.
+- [ ] **Firestore Writes**: All form submissions that write to Firestore (e.g., creating a post, joining a community) work as expected.
+- [ ] **Security Rules**: Attempting to access unauthorized data directly (e.g., another user's profile) is correctly blocked by Firestore rules (check network tab for permission errors).
+- [ ] **Authentication State**: The UI correctly reflects the user's logged-in/logged-out state across the application.
+
+
+Footer 
+Build for Humans and Culture  in Australia with their respective flags.  Add: 
+
+“Ultimately, CulturePass showcases the remarkable potential of a successful human-AI partnership.”
