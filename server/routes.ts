@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import session from "express-session";
 import pgSession from "connect-pg-simple";
 import pg from "pg";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 
 declare module "express-session" {
   interface SessionData {
@@ -615,6 +616,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  // ── Stripe Checkout ──
+  app.get("/api/stripe/publishable-key", async (_req: Request, res: Response) => {
+    try {
+      const key = await getStripePublishableKey();
+      res.json({ publishableKey: key });
+    } catch (err: any) {
+      res.status(500).json({ error: "Stripe not configured" });
+    }
+  });
+
+  app.post("/api/checkout", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) return res.status(401).json({ error: "Login required" });
+      const user = await storage.getUser(req.session.userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const { eventId, quantity = 1 } = req.body;
+      if (!eventId) return res.status(400).json({ error: "Event ID required" });
+
+      const event = await storage.getEventById(eventId);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+
+      if (event.price === 0) {
+        const order = await storage.createOrder({
+          userId: user.id,
+          eventId: event.id,
+          quantity,
+          amount: 0,
+          status: "confirmed",
+          customerName: user.name,
+          customerEmail: user.email || "",
+        });
+        return res.json({ free: true, order });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: event.currency || "aud",
+              product_data: {
+                name: event.title,
+                description: `${event.date} at ${event.venue}, ${event.city}`,
+              },
+              unit_amount: Math.round(event.price * 100),
+            },
+            quantity,
+          },
+        ],
+        mode: "payment",
+        success_url: `${baseUrl}/api/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/api/checkout/cancel`,
+        metadata: {
+          eventId: event.id,
+          userId: user.id,
+          quantity: String(quantity),
+        },
+        customer_email: user.email || undefined,
+      });
+
+      const order = await storage.createOrder({
+        userId: user.id,
+        eventId: event.id,
+        quantity,
+        amount: event.price * quantity,
+        status: "pending",
+        customerName: user.name,
+        customerEmail: user.email || "",
+      });
+
+      res.json({ url: session.url, orderId: order.id });
+    } catch (err: any) {
+      console.error("Checkout error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/checkout/success", async (req: Request, res: Response) => {
+    try {
+      const sessionId = req.query.session_id as string;
+      if (sessionId) {
+        const stripe = await getUncachableStripeClient();
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status === "paid" && session.metadata) {
+          const { eventId, userId, quantity } = session.metadata;
+          const orders = await storage.getOrdersByUser(userId);
+          const pendingOrder = orders.find(o => o.eventId === eventId && o.status === "pending");
+          if (pendingOrder) {
+            await storage.updateOrder(pendingOrder.id, { status: "confirmed" });
+          }
+        }
+      }
+      res.send(`<html><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#FAFAF8">
+        <div style="text-align:center;padding:40px">
+          <div style="font-size:64px;margin-bottom:16px">&#10003;</div>
+          <h1 style="color:#1A535C;margin-bottom:8px">Payment Successful!</h1>
+          <p style="color:#6B6B6F">Your tickets have been booked. You can close this window and return to the app.</p>
+        </div>
+      </body></html>`);
+    } catch (err: any) {
+      res.send(`<html><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+        <div style="text-align:center"><h1>Payment received</h1><p>You can close this window.</p></div>
+      </body></html>`);
+    }
+  });
+
+  app.get("/api/checkout/cancel", (_req: Request, res: Response) => {
+    res.send(`<html><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#FAFAF8">
+      <div style="text-align:center;padding:40px">
+        <div style="font-size:64px;margin-bottom:16px">&#10007;</div>
+        <h1 style="color:#E2725B;margin-bottom:8px">Payment Cancelled</h1>
+        <p style="color:#6B6B6F">No charges were made. You can close this window and return to the app.</p>
+      </div>
+    </body></html>`);
   });
 
   // ── Health ──

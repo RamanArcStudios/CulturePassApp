@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams, router, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -71,14 +72,22 @@ export default function EventDetailScreen() {
   const confirmBooking = useCallback(async () => {
     setBookingStatus("loading");
     try {
-      await apiRequest("POST", "/api/orders", {
+      const res = await apiRequest("POST", "/api/checkout", {
         eventId: id,
         quantity: 1,
-        amount: event?.price || 0,
-        status: "confirmed",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
-      setBookingStatus("success");
+      const data = await res.json();
+
+      if (data.free) {
+        queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+        setBookingStatus("success");
+      } else if (data.url) {
+        queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+        setBookingStatus("success");
+        Linking.openURL(data.url);
+      } else {
+        setBookingStatus("error");
+      }
     } catch {
       setBookingStatus("error");
     }

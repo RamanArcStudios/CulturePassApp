@@ -251,6 +251,11 @@ export const storage = {
     return order;
   },
 
+  async updateOrder(id: string, data: Partial<Order>): Promise<Order | undefined> {
+    const [order] = await db.update(orders).set(data).where(eq(orders.id, id)).returning();
+    return order;
+  },
+
   // Memberships
   async joinOrganisation(data: InsertMembership): Promise<Membership> {
     const [membership] = await db.insert(memberships).values(data).returning();
