@@ -79,6 +79,24 @@ export interface Perk {
   imageUrl: string | null;
 }
 
+export interface Order {
+  id: string;
+  userId: string;
+  eventId: string | null;
+  quantity: number | null;
+  totalPrice: number | null;
+  status: string | null;
+  createdAt: string | null;
+}
+
+export interface Membership {
+  id: string;
+  userId: string;
+  orgId: string;
+  role: string | null;
+  joinedAt: string | null;
+}
+
 export interface UserProfile {
   id: string;
   username: string;
