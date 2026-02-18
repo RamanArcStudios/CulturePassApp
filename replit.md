@@ -1,9 +1,15 @@
 # CulturePass
 
 ## Overview
-CulturePass is a mobile app for discovering and booking cultural events for Kerala/Malayalee communities in Australia. Built with Expo (React Native) + Express backend with PostgreSQL database.
+CulturePass is a mobile app for discovering and booking cultural events for Kerala/Malayalee communities in Australia & NZ. Built with Expo (React Native) + Express backend with PostgreSQL database.
 
 ## Recent Changes
+- 2026-02-18: Clickable map/directions on event detail pages - venue cards open native maps apps
+- 2026-02-18: Universal share functionality on all detail pages (events, venues, artists, communities, businesses)
+- 2026-02-18: QR code modal for purchased tickets in profile using QR code API
+- 2026-02-18: Category and city filter chips for business listings with empty states
+- 2026-02-18: Refreshed color palette (primary #D4654A, secondary #16656E, accent #C9941A)
+- 2026-02-18: Updated branding from "Discover" to "CulturePass" header with "Discover cultural events in Australia & NZ" subtitle
 - 2026-02-18: Social media links (Facebook, Instagram, Twitter/X, YouTube, TikTok, LinkedIn) and website URL fields added to users, organisations, businesses, artists, venues; SocialLinksBar component on all detail pages; social fields in submission forms and profile edit
 - 2026-02-18: Stripe payment integration for paid event ticket purchases via /api/checkout endpoint; free events confirmed directly, paid events redirect to Stripe checkout
 - 2026-02-18: Admin system with role-based access (roleGlobal field), admin dashboard (/admin), pending submission approval/rejection, admin API routes (/api/admin/*)
@@ -19,7 +25,7 @@ CulturePass is a mobile app for discovering and booking cultural events for Kera
 - **Auth**: Session-based auth with connect-pg-simple for PostgreSQL session storage
 - **Data Fetching**: React Query (`@tanstack/react-query`) with default queryFn in `lib/query-client.ts`
 - **Fonts**: Poppins (Google Fonts)
-- **Colors**: Warm coral/terracotta primary (#E2725B), deep teal secondary (#1A535C), gold accent (#D4A017)
+- **Colors**: Warm coral/terracotta primary (#D4654A), deep teal secondary (#16656E), gold accent (#C9941A)
 
 ## Database Schema (shared/schema.ts)
 - users, events, organisations, businesses, artists, perks, orders, memberships
