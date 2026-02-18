@@ -4,6 +4,7 @@
 CulturePass is a mobile app for discovering and booking cultural events for Kerala/Malayalee communities in Australia. Built with Expo (React Native) + Express backend with PostgreSQL database.
 
 ## Recent Changes
+- 2026-02-18: Full auth system with login/signup/logout, profile editing, API-backed saved events (replaced AsyncStorage), join community, book tickets with auth guards
 - 2026-02-18: Full backend infrastructure with PostgreSQL database, Drizzle ORM, REST API, session auth, and all screens connected to live data
 - 2026-02-17: Initial MVP build with event discovery, calendar, community directory, business listings, artist profiles, perks, and user profile
 
@@ -37,7 +38,7 @@ CulturePass is a mobile app for discovering and booking cultural events for Kera
 - Calendar - Month view with event dates
 - Community - Organisations, businesses, artists tabs
 - Perks - Member discount codes
-- Profile - Saved events, settings
+- Profile - Auth gate, saved events, my tickets, my communities, edit profile, logout
 
 ## Detail Screens
 - /event/[id] - Full event details with booking
@@ -56,6 +57,14 @@ CulturePass is a mobile app for discovering and booking cultural events for Kera
 - drizzle-orm + drizzle-kit for database
 - connect-pg-simple for session storage
 
+## Auth Flow
+- AuthProvider wraps app in lib/auth.tsx with React Context
+- Auth modal at /auth route with login/signup toggle
+- All protected actions (save event, book ticket, join community) redirect to /auth if not logged in
+- Saved events are API-backed via POST /api/users/save-event (toggled)
+- Join community via POST /api/memberships
+- Book tickets via POST /api/orders
+
 ## Notes
-- Saved events still use local AsyncStorage (not yet migrated to API endpoint)
 - Query keys use array format: ['/api/resource', id] which joins to /api/resource/id via default queryFn
+- lib/storage.ts exists but is no longer used (AsyncStorage replaced by API calls)
