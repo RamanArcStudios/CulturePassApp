@@ -45,6 +45,10 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="submit"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="auth"
         options={{
           presentation: "modal",
@@ -65,6 +69,10 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="settings/about"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="admin"
         options={{ headerShown: false }}
       />
     </Stack>
