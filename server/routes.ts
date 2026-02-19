@@ -47,13 +47,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // ── Auth ──
+  function generateReferralCode(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "CP-";
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
+
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const { username, password, name, email, city, state, country, phone } = req.body;
+      const { username, password, name, email, city, state, country, phone, referralCode } = req.body;
       if (!username || !password) return res.status(400).json({ error: "Username and password required" });
 
       const existing = await storage.getUserByUsername(username);
       if (existing) return res.status(409).json({ error: "Username already taken" });
+
+      let referrerId: string | undefined;
+      if (referralCode) {
+        const referrer = await storage.getUserByReferralCode(referralCode);
+        if (referrer) referrerId = referrer.id;
+      }
 
       const hashed = await bcrypt.hash(password, 10);
       const user = await storage.createUser({
@@ -67,8 +80,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         phone: phone || "",
       });
 
+      const newReferralCode = generateReferralCode();
+      await storage.updateUser(user.id, {
+        referralCode: newReferralCode,
+        ...(referrerId ? { referredBy: referrerId } : {}),
+      } as any);
+
+      if (referrerId && referralCode) {
+        await storage.createReferral({
+          referrerId,
+          referredUserId: user.id,
+          referralCode,
+          status: "completed",
+        });
+      }
+
       req.session.userId = user.id;
-      const { password: _, ...safeUser } = user;
+      const updatedUser = await storage.getUser(user.id);
+      const { password: _, ...safeUser } = updatedUser!;
       res.status(201).json(safeUser);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -923,6 +952,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
           <h1 style="color:#1A535C">Password Reset!</h1>
           <p style="color:#6B6B6F">Your password has been updated. You can now log in with your new password in the app.</p>
         </div></body></html>`);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Referrals ──
+  app.get("/api/referrals/my", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const referralsList = await storage.getReferralsByReferrer(req.session.userId!);
+      const count = referralsList.length;
+      const referredUsers = await Promise.all(
+        referralsList.map(async (r) => {
+          const user = await storage.getUser(r.referredUserId);
+          return {
+            id: r.id,
+            referredName: user?.name || "User",
+            referredUsername: user?.username || "",
+            createdAt: r.createdAt,
+            status: r.status,
+          };
+        })
+      );
+      res.json({ count, referrals: referredUsers });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/referrals/generate-code", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      if (user.referralCode) return res.json({ referralCode: user.referralCode });
+      const code = generateReferralCode();
+      await storage.updateUser(user.id, { referralCode: code } as any);
+      res.json({ referralCode: code });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/referrals/validate/:code", async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUserByReferralCode(req.params.code);
+      if (!user) return res.json({ valid: false });
+      res.json({ valid: true, referrerName: user.name });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

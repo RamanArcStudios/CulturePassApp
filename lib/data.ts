@@ -72,6 +72,7 @@ export interface Organisation {
   imageUrl: string | null;
   cpid: string | null;
   established: string | null;
+  charityNumber: string | null;
   categories: string[] | null;
   website: string | null;
   socialLinks: SocialLinks | null;
@@ -89,6 +90,7 @@ export interface Business {
   website: string | null;
   imageUrl: string | null;
   cpid: string | null;
+  abn: string | null;
   rating: number | null;
   isSponsor: boolean | null;
   lat: number | null;
@@ -123,6 +125,8 @@ export interface Perk {
   validUntil: string;
   category: string | null;
   imageUrl: string | null;
+  bookingUrl: string | null;
+  businessId: string | null;
 }
 
 export interface Order {
@@ -153,11 +157,22 @@ export interface UserProfile {
   country: string | null;
   phone: string | null;
   cpid: string | null;
+  referralCode: string | null;
+  referredBy: string | null;
   savedEvents: string[] | null;
   memberOf: string[] | null;
   roleGlobal: string | null;
   website: string | null;
   socialLinks: SocialLinks | null;
+}
+
+export interface Referral {
+  id: string;
+  referrerId: string;
+  referredUserId: string;
+  referralCode: string;
+  status: string | null;
+  createdAt: string | null;
 }
 
 export const EVENT_CATEGORIES: EventCategory[] = [

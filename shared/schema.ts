@@ -29,6 +29,8 @@ export const users = pgTable("users", {
   phone: text("phone").default(""),
   phoneVerified: boolean("phone_verified").default(false),
   cpid: text("cpid").unique(),
+  referralCode: text("referral_code").unique(),
+  referredBy: varchar("referred_by"),
   savedEvents: jsonb("saved_events").$type<string[]>().default([]),
   memberOf: jsonb("member_of").$type<string[]>().default([]),
   roleGlobal: text("role_global").default("user"),
@@ -106,6 +108,7 @@ export const organisations = pgTable("organisations", {
   imageUrl: text("image_url").default(""),
   cpid: text("cpid").unique(),
   established: text("established").default(""),
+  charityNumber: text("charity_number").default(""),
   categories: jsonb("categories").$type<string[]>().default([]),
   slug: text("slug"),
   status: text("status").default("active"),
@@ -129,6 +132,7 @@ export const businesses = pgTable("businesses", {
   website: text("website").default(""),
   imageUrl: text("image_url").default(""),
   cpid: text("cpid").unique(),
+  abn: text("abn").default(""),
   rating: real("rating").default(0),
   ownerId: varchar("owner_id"),
   status: text("status").default("active"),
@@ -173,6 +177,8 @@ export const perks = pgTable("perks", {
   validUntil: text("valid_until").notNull(),
   category: text("category").default(""),
   imageUrl: text("image_url").default(""),
+  bookingUrl: text("booking_url").default(""),
+  businessId: varchar("business_id"),
   status: text("status").default("active"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -217,6 +223,17 @@ export const cpids = pgTable("cpids", {
   cpid: text("cpid").primaryKey(),
   entityType: text("entity_type").notNull(),
   entityId: varchar("entity_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const referrals = pgTable("referrals", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  referrerId: varchar("referrer_id").notNull(),
+  referredUserId: varchar("referred_user_id").notNull(),
+  referralCode: text("referral_code").notNull(),
+  status: text("status").default("completed"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -277,6 +294,11 @@ export const insertMembershipSchema = createInsertSchema(memberships).omit({
   createdAt: true,
 });
 
+export const insertReferralSchema = createInsertSchema(referrals).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Event = typeof events.$inferSelect;
@@ -295,3 +317,5 @@ export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type Membership = typeof memberships.$inferSelect;
 export type InsertMembership = z.infer<typeof insertMembershipSchema>;
+export type Referral = typeof referrals.$inferSelect;
+export type InsertReferral = z.infer<typeof insertReferralSchema>;

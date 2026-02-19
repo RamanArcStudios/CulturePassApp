@@ -12,6 +12,7 @@ import {
   memberships,
   passwordResetTokens,
   cpids,
+  referrals,
   type User,
   type InsertUser,
   type Event,
@@ -30,6 +31,8 @@ import {
   type InsertOrder,
   type Membership,
   type InsertMembership,
+  type Referral,
+  type InsertReferral,
 } from "@shared/schema";
 
 function generateCPID(prefix: string): string {
@@ -426,6 +429,26 @@ export const storage = {
   async lookupCPID(cpid: string) {
     const [result] = await db.select().from(cpids).where(eq(cpids.cpid, cpid));
     return result;
+  },
+
+  // Referrals
+  async getUserByReferralCode(code: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.referralCode, code));
+    return user;
+  },
+
+  async createReferral(data: InsertReferral): Promise<Referral> {
+    const [referral] = await db.insert(referrals).values(data).returning();
+    return referral;
+  },
+
+  async getReferralsByReferrer(referrerId: string): Promise<Referral[]> {
+    return db.select().from(referrals).where(eq(referrals.referrerId, referrerId)).orderBy(desc(referrals.createdAt));
+  },
+
+  async getReferralCount(referrerId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(referrals).where(eq(referrals.referrerId, referrerId));
+    return Number(result[0]?.count || 0);
   },
 
   // Map data - all points for map display
