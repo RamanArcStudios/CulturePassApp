@@ -114,10 +114,25 @@ export default function BusinessDetailScreen() {
           <Text style={styles.ratingText}>{business.rating ?? 0}</Text>
         </View>
 
-        <View style={styles.infoRow}>
+        <Pressable
+          style={styles.infoRow}
+          onPress={() => {
+            if (business.lat && business.lng) {
+              const url = Platform.select({
+                ios: `http://maps.apple.com/?daddr=${business.lat},${business.lng}&q=${encodeURIComponent(business.name)}`,
+                default: `https://www.google.com/maps/dir/?api=1&destination=${business.lat},${business.lng}`,
+              });
+              Linking.openURL(url);
+            } else {
+              const q = encodeURIComponent(`${business.name}, ${business.city}, ${business.state}`);
+              Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+            }
+          }}
+        >
           <Ionicons name="location" size={16} color={Colors.light.primary} />
           <Text style={styles.infoText}>{business.city}, {business.state}</Text>
-        </View>
+          <Ionicons name="navigate" size={14} color={Colors.light.primary} style={{ marginLeft: "auto" }} />
+        </Pressable>
 
         <View style={styles.cpidRow}>
           <Ionicons name="shield-checkmark" size={14} color={Colors.light.secondary} />

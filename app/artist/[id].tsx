@@ -10,6 +10,7 @@ import {
   FlatList,
   Share,
   Alert,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams, router, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -191,11 +192,21 @@ export default function ArtistDetailScreen() {
             <Text style={styles.statValue}>{artist.performances ?? 0}</Text>
             <Text style={styles.statLabel}>Shows</Text>
           </View>
-          <View style={styles.statCard}>
+          <Pressable
+            style={styles.statCard}
+            onPress={() => {
+              const q = encodeURIComponent(`${artist.city}, ${artist.state}, Australia`);
+              const url = Platform.select({
+                ios: `http://maps.apple.com/?q=${q}`,
+                default: `https://www.google.com/maps/search/?api=1&query=${q}`,
+              });
+              Linking.openURL(url);
+            }}
+          >
             <Ionicons name="location" size={20} color={Colors.light.secondary} />
             <Text style={styles.statValue}>{artist.city}</Text>
             <Text style={styles.statLabel}>{artist.state}</Text>
-          </View>
+          </Pressable>
         </View>
 
         <View style={styles.cpidRow}>

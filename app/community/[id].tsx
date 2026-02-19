@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Share,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams, router, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -127,10 +128,21 @@ export default function CommunityDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.locationRow}>
+        <Pressable
+          style={styles.locationRow}
+          onPress={() => {
+            const q = encodeURIComponent(`${org.city}, ${org.state}, Australia`);
+            const url = Platform.select({
+              ios: `http://maps.apple.com/?q=${q}`,
+              default: `https://www.google.com/maps/search/?api=1&query=${q}`,
+            });
+            Linking.openURL(url);
+          }}
+        >
           <Ionicons name="location" size={16} color={Colors.light.primary} />
           <Text style={styles.locationText}>{org.city}, {org.state}</Text>
-        </View>
+          <Ionicons name="navigate" size={14} color={Colors.light.primary} style={{ marginLeft: "auto" }} />
+        </Pressable>
 
         <View style={styles.tagRow}>
           {(org.categories ?? []).map(c => (
