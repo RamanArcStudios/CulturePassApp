@@ -19,6 +19,8 @@ export const users = pgTable("users", {
     .default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  replitId: text("replit_id").unique(),
+  profileImageUrl: text("profile_image_url").default(""),
   name: text("name").notNull().default("Guest User"),
   email: text("email").default(""),
   city: text("city").default("Sydney"),
