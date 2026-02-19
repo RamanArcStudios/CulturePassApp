@@ -1,4 +1,4 @@
-import { eq, desc, and, ilike, sql, gte } from "drizzle-orm";
+import { eq, desc, and, or, ilike, sql, gte } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -119,7 +119,10 @@ export const storage = {
     if (opts?.category) conditions.push(eq(events.category, opts.category));
     if (opts?.city) conditions.push(eq(events.city, opts.city));
     if (opts?.featured) conditions.push(eq(events.featured, true));
-    if (opts?.search) conditions.push(ilike(events.title, `%${opts.search}%`));
+    if (opts?.search) {
+      const searchTerm = `%${opts.search}%`;
+      conditions.push(or(ilike(events.title, searchTerm), ilike(events.city, searchTerm)));
+    }
     return db.select().from(events).where(and(...conditions)).orderBy(events.date);
   },
 

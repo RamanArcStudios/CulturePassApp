@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -32,37 +32,76 @@ import {
 } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/query-client";
+import { useDebounce } from "@/lib/use-debounce";
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(
+    null
+  );
   const [refreshing, setRefreshing] = useState(false);
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const { data: allEvents = [], isLoading: loadingEvents } = useQuery<Event[]>({ queryKey: ['/api/events'] });
-  const { data: featuredEvents = [] } = useQuery<Event[]>({ queryKey: ['/api/events/featured'] });
-  const { data: trendingEvents = [] } = useQuery<Event[]>({ queryKey: ['/api/events/trending'] });
-  const { data: allOrganisations = [] } = useQuery<Organisation[]>({ queryKey: ['/api/organisations'] });
-  const { data: featuredArtists = [] } = useQuery<Artist[]>({ queryKey: ['/api/artists/featured'] });
+  const queryParams = new URLSearchParams();
+  if (selectedCategory) queryParams.set("category", selectedCategory);
+  if (debouncedSearch) queryParams.set("search", debouncedSearch);
 
-  const organisations = allOrganisations.slice(0, 5);
+  const { data: filteredEvents = [], isLoading: loadingEvents } = useQuery<Event[]>(
+    {
+      queryKey: [`/api/events?${queryParams.toString()}`],
+    }
+  );
+
+  const showFilteredResults = !!(debouncedSearch || selectedCategory);
+
+  const { data: featuredEvents = [] } = useQuery<Event[]>({
+    queryKey: ["/api/events/featured"],
+    enabled: !showFilteredResults,
+  });
+
+  const { data: trendingEvents = [] } = useQuery<Event[]>({
+    queryKey: ["/api/events/trending"],
+    enabled: !showFilteredResults,
+  });
+
+  const { data: allEvents = [] } = useQuery<Event[]>({
+    queryKey: ["/api/events"],
+    enabled: !showFilteredResults,
+  });
+
+  const { data: allOrganisations = [] } = useQuery<Organisation[]>({
+    queryKey: ["/api/organisations"],
+    enabled: !showFilteredResults,
+  });
+
+  const { data: featuredArtists = [] } = useQuery<Artist[]>({
+    queryKey: ["/api/artists/featured"],
+    enabled: !showFilteredResults,
+  });
+
+  const organisations = useMemo(() => allOrganisations.slice(0, 5), [allOrganisations]);
 
   const savedEventIds: string[] = user?.savedEvents ?? [];
 
-  const handleSave = useCallback(async (id: string) => {
-    if (!isAuthenticated) {
-      router.push("/auth");
-      return;
-    }
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      await apiRequest("POST", "/api/users/save-event", { eventId: id });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-    } catch (err: any) {
-      Alert.alert("Error", "Failed to save event");
-    }
-  }, [isAuthenticated]);
+  const handleSave = useCallback(
+    async (id: string) => {
+      if (!isAuthenticated) {
+        router.push("/auth");
+        return;
+      }
+      if (Platform.OS !== "web")
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      try {
+        await apiRequest("POST", "/api/users/save-event", { eventId: id });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      } catch (err: any) {
+        Alert.alert("Error", "Failed to save event");
+      }
+    },
+    [isAuthenticated]
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -71,159 +110,91 @@ export default function DiscoverScreen() {
     });
   }, []);
 
-  const filteredEvents = allEvents.filter(e => {
-    const matchesSearch = !searchQuery ||
-      e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.city.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !selectedCategory || e.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
   const webTopInset = Platform.OS === "web" ? 67 : 0;
-
-  if (loadingEvents) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator size="large" color={Colors.light.primary} /></View>;
 
   return (
     <View style={styles.container}>
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingBottom: 100 }}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.light.primary} />
-      }
-    >
-      <LinearGradient
-        colors={["#E2725B", "#D4A017"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.headerGradient, { paddingTop: insets.top + webTopInset + 16 }]}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.light.primary}
+          />
+        }
       >
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.greeting}>CulturePass</Text>
-            <Text style={styles.subtitle}>Discover cultural events in Australia & NZ</Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            style={styles.notifBtn}
-          >
-            <Ionicons name="notifications-outline" size={22} color="#fff" />
-          </Pressable>
-        </View>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={Colors.light.textTertiary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search events, cities..."
-            placeholderTextColor={Colors.light.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {!!searchQuery && (
-            <Pressable onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={18} color={Colors.light.textTertiary} />
-            </Pressable>
-          )}
-        </View>
-      </LinearGradient>
-
-      <View style={styles.categorySection}>
-        <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />
-      </View>
-
-      {searchQuery || selectedCategory ? (
-        <View style={styles.filteredSection}>
-          <Text style={styles.resultsText}>
-            {filteredEvents.length} event{filteredEvents.length !== 1 ? "s" : ""} found
-          </Text>
-          {filteredEvents.map(event => (
-            <EventCard
-              key={event.id}
-              event={event}
-              variant="list"
-              onSave={handleSave}
-              isSaved={savedEventIds.includes(event.id)}
-            />
-          ))}
-          {filteredEvents.length === 0 && (
-            <View style={styles.emptyState}>
-              <Ionicons name="search" size={48} color={Colors.light.textTertiary} />
-              <Text style={styles.emptyTitle}>No events found</Text>
-              <Text style={styles.emptyText}>Try a different search or category</Text>
+        <LinearGradient
+          colors={["#E2725B", "#D4A017"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.headerGradient,
+            { paddingTop: insets.top + webTopInset + 16 },
+          ]}
+        >
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.greeting}>Welcome to CulturePass!</Text>
+              <Text style={styles.subtitle}>
+                Your guide to the Malayalee community
+              </Text>
             </View>
-          )}
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== "web")
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              style={styles.notifBtn}
+            >
+              <Ionicons name="notifications-outline" size={22} color="#fff" />
+            </Pressable>
+          </View>
+          <View style={styles.searchContainer}>
+            <Ionicons
+              name="search"
+              size={18}
+              color={Colors.light.textTertiary}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search events, cities..."
+              placeholderTextColor={Colors.light.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {!!searchQuery && (
+              <Pressable onPress={() => setSearchQuery("")}>
+                <Ionicons
+                  name="close-circle"
+                  size={18}
+                  color={Colors.light.textTertiary}
+                />
+              </Pressable>
+            )}
+          </View>
+        </LinearGradient>
+
+        <View style={styles.categorySection}>
+          <CategoryFilter
+            selected={selectedCategory}
+            onSelect={setSelectedCategory}
+          />
         </View>
-      ) : (
-        <>
-          <SectionHeader title="Featured Events" />
-          <FlatList
-            data={featuredEvents}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-            renderItem={({ item }) => (
-              <EventCard
-                event={item}
-                variant="featured"
-                onSave={handleSave}
-                isSaved={savedEventIds.includes(item.id)}
-              />
-            )}
-            scrollEnabled={featuredEvents.length > 0}
-          />
 
-          <SectionHeader
-            title="Trending Now"
-            onSeeAll={() => router.push("/allevents")}
-          />
-          <FlatList
-            data={trendingEvents}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-            renderItem={({ item }) => (
-              <EventCard event={item} variant="compact" />
-            )}
-            scrollEnabled={trendingEvents.length > 0}
-          />
-
-          <SectionHeader title="Communities" />
-          <FlatList
-            data={organisations}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-            renderItem={({ item }) => (
-              <CommunityCard org={item} variant="card" />
-            )}
-            scrollEnabled={organisations.length > 0}
-          />
-
-          <SectionHeader title="Featured Artists" />
-          <FlatList
-            data={featuredArtists}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-            renderItem={({ item }) => (
-              <ArtistCard artist={item} variant="card" />
-            )}
-            scrollEnabled={featuredArtists.length > 0}
-          />
-
-          <SectionHeader
-            title="Upcoming Events"
-            onSeeAll={() => router.push("/allevents")}
-          />
-          <View style={styles.upcomingList}>
-            {allEvents.slice(0, 4).map(event => (
+        {loadingEvents && showFilteredResults ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.light.primary} />
+          </View>
+        ) : showFilteredResults ? (
+          <View style={styles.filteredSection}>
+            <Text style={styles.resultsText}>
+              {filteredEvents.length} event
+              {filteredEvents.length !== 1 ? "s" : ""} found
+            </Text>
+            {filteredEvents.map((event) => (
               <EventCard
                 key={event.id}
                 event={event}
@@ -232,22 +203,113 @@ export default function DiscoverScreen() {
                 isSaved={savedEventIds.includes(event.id)}
               />
             ))}
+            {filteredEvents.length === 0 && (
+              <View style={styles.emptyState}>
+                <Ionicons
+                  name="search"
+                  size={48}
+                  color={Colors.light.textTertiary}
+                />
+                <Text style={styles.emptyTitle}>No events found</Text>
+                <Text style={styles.emptyText}>
+                  Try a different search or category
+                </Text>
+              </View>
+            )}
           </View>
-        </>
-      )}
-    </ScrollView>
+        ) : (
+          <>
+            <SectionHeader title="Featured Events" />
+            <FlatList
+              data={featuredEvents}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+              renderItem={({ item }) => (
+                <EventCard
+                  event={item}
+                  variant="featured"
+                  onSave={handleSave}
+                  isSaved={savedEventIds.includes(item.id)}
+                />
+              )}
+              scrollEnabled={featuredEvents.length > 0}
+            />
 
-    <Pressable
-      style={styles.mapFab}
-      onPress={() => {
-        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.push("/map");
-      }}
-      testID="map-fab-button"
-    >
-      <Ionicons name="map" size={22} color="#fff" />
-    </Pressable>
-  </View>
+            <SectionHeader
+              title="Trending Now"
+              onSeeAll={() => router.push("/allevents")}
+            />
+            <FlatList
+              data={trendingEvents}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+              renderItem={({ item }) => (
+                <EventCard event={item} variant="compact" />
+              )}
+              scrollEnabled={trendingEvents.length > 0}
+            />
+
+            <SectionHeader title="Communities" />
+            <FlatList
+              data={organisations}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+              renderItem={({ item }) => (
+                <CommunityCard org={item} variant="card" />
+              )}
+              scrollEnabled={organisations.length > 0}
+            />
+
+            <SectionHeader title="Featured Artists" />
+            <FlatList
+              data={featuredArtists}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+              renderItem={({ item }) => (
+                <ArtistCard artist={item} variant="card" />
+              )}
+              scrollEnabled={featuredArtists.length > 0}
+            />
+
+            <SectionHeader
+              title="Upcoming Events"
+              onSeeAll={() => router.push("/allevents")}
+            />
+            <View style={styles.upcomingList}>
+              {allEvents.slice(0, 4).map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  variant="list"
+                  onSave={handleSave}
+                  isSaved={savedEventIds.includes(event.id)}
+                />
+              ))}
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      <Pressable
+        style={styles.mapFab}
+        onPress={() => {
+          if (Platform.OS !== "web")
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          router.push("/map");
+        }}
+        testID="map-fab-button"
+      >
+        <Ionicons name="map" size={22} color="#fff" />
+      </Pressable>
+    </View>
   );
 }
 
@@ -321,6 +383,12 @@ const styles = StyleSheet.create({
   },
   upcomingList: {
     paddingHorizontal: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 48,
   },
   emptyState: {
     alignItems: "center",

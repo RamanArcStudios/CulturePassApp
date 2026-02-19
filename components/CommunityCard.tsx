@@ -29,7 +29,7 @@ export default function CommunityCard({ org, variant = "card" }: CommunityCardPr
         ]}
       >
         <Image source={{ uri: org.imageUrl ?? undefined }} style={styles.listImage} contentFit="cover" transition={200} />
-        <View style={styles.listContent} pointerEvents="none">
+        <View style={styles.listContent}>
           <Text style={styles.listName} numberOfLines={1}>{org.name}</Text>
           <View style={styles.listMeta}>
             <Ionicons name="location-outline" size={12} color={Colors.light.textSecondary} />
@@ -62,7 +62,7 @@ export default function CommunityCard({ org, variant = "card" }: CommunityCardPr
       ]}
     >
       <Image source={{ uri: org.imageUrl ?? undefined }} style={styles.cardImage} contentFit="cover" transition={200} />
-      <View style={styles.cardContent} pointerEvents="none">
+      <View style={styles.cardContent}>
         <Text style={styles.cardName} numberOfLines={2}>{org.name}</Text>
         <View style={styles.cardMeta}>
           <Ionicons name="location-outline" size={12} color={Colors.light.textSecondary} />
@@ -91,6 +91,7 @@ const styles = StyleSheet.create({
   cardContent: {
     padding: 12,
     gap: 4,
+    pointerEvents: "none",
   },
   cardName: {
     fontSize: 13,
@@ -131,6 +132,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     gap: 3,
+    pointerEvents: "none",
   },
   listName: {
     fontSize: 15,

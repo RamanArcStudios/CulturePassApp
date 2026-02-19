@@ -6,7 +6,7 @@ import crypto from "crypto";
 import session from "express-session";
 import pgSession from "connect-pg-simple";
 import pg from "pg";
-import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { getStripeClient, getStripePublishableKey } from "./stripeClient";
 
 declare module "express-session" {
   interface SessionData {
@@ -134,25 +134,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.userId) return res.status(401).json({ error: "Not authenticated" });
       const user = await storage.getUser(req.session.userId);
       if (!user) return res.status(404).json({ error: "User not found" });
-      const { password: _, ...safeUser } = user;
-      res.json(safeUser);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.get("/api/auth/replit", async (req: Request, res: Response) => {
-    try {
-      const userId = req.headers["x-replit-user-id"] as string;
-      const userName = req.headers["x-replit-user-name"] as string;
-      const userProfileImage = req.headers["x-replit-user-profile-image"] as string;
-
-      if (!userId || !userName) {
-        return res.status(401).json({ error: "Not authenticated with Replit" });
-      }
-
-      const user = await storage.upsertReplitUser(userId, userName, userProfileImage);
-      req.session.userId = user.id;
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
     } catch (err: any) {
@@ -686,7 +667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Stripe Checkout ──
   app.get("/api/stripe/publishable-key", async (_req: Request, res: Response) => {
     try {
-      const key = await getStripePublishableKey();
+      const key = getStripePublishableKey();
       res.json({ publishableKey: key });
     } catch (err: any) {
       res.status(500).json({ error: "Stripe not configured" });
@@ -718,8 +699,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ free: true, order });
       }
 
-      const stripe = await getUncachableStripeClient();
-      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+      const stripe = getStripeClient();
+      const baseUrl = 'http://localhost:5000';
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
@@ -768,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const sessionId = req.query.session_id as string;
       if (sessionId) {
-        const stripe = await getUncachableStripeClient();
+        const stripe = getStripeClient();
         const session = await stripe.checkout.sessions.retrieve(sessionId);
         if (session.payment_status === "paid" && session.metadata) {
           const { eventId, userId, quantity } = session.metadata;
@@ -876,7 +857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
       await storage.createPasswordResetToken(user.id, token, expiresAt);
 
-      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+      const baseUrl = 'http://localhost:5000';
       const resetUrl = `${baseUrl}/api/auth/reset-password-page?token=${token}`;
 
       console.log(`[Password Reset] Token for ${email}: ${token}`);
@@ -1111,7 +1092,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         genericType: "GENERIC_TYPE_UNSPECIFIED",
         hexBackgroundColor: "#16656E",
         logo: {
-          sourceUri: { uri: "https://culturepass.replit.app/icon.png" },
+          sourceUri: { uri: "http://localhost:5000/assets/icon.png" },
           contentDescription: { defaultValue: { language: "en-US", value: "CulturePass" } },
         },
         cardTitle: {
