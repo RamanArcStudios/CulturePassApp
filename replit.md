@@ -4,6 +4,9 @@
 CulturePass is a mobile app for discovering and booking cultural events for Kerala/Malayalee communities in Australia & NZ. Built with Expo (React Native) + Express backend with PostgreSQL database.
 
 ## Recent Changes
+- 2026-02-19: Referral/affiliation system - referralCode and referredBy on users table, referrals tracking table, API endpoints (GET /api/referrals/my, POST /api/referrals/generate-code, GET /api/referrals/validate/:code), referral code input on signup form, referral section on profile with share/copy and referred users list
+- 2026-02-19: ABN field on businesses schema + charity registration number (charityNumber) on organisations schema; displayed on detail pages; included in submission forms
+- 2026-02-19: Clickable perk cards with bookingUrl support - cards open booking links after revealing discount codes; bookingUrl and businessId fields on perks schema
 - 2026-02-19: Replit Auth integration - users can sign in with their Replit account via "Sign in with Replit" button on auth screen; backend reads X-Replit-User-* headers and creates/links user accounts; replitId and profileImageUrl columns added to users table
 - 2026-02-18: Clickable map/directions on event detail pages - venue cards open native maps apps
 - 2026-02-18: Universal share functionality on all detail pages (events, venues, artists, communities, businesses)
