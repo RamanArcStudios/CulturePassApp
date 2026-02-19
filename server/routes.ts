@@ -1003,6 +1003,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Wallet Pass Endpoints ──
+  app.get("/api/wallet/apple/:userId", async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUser(req.params.userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const hasCerts = process.env.APPLE_PASS_TYPE_ID &&
+                       process.env.APPLE_TEAM_ID &&
+                       process.env.APPLE_PASS_CERT &&
+                       process.env.APPLE_PASS_KEY;
+
+      if (!hasCerts) {
+        return res.status(503).json({
+          error: "Apple Wallet integration is not configured",
+          message: "Apple Developer certificates are required. Set APPLE_PASS_TYPE_ID, APPLE_TEAM_ID, APPLE_PASS_CERT, and APPLE_PASS_KEY environment variables."
+        });
+      }
+
+      const { PKPass } = await import("passkit-generator");
+
+      const pass = new PKPass({}, {
+        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT || "", "base64"),
+        signerCert: Buffer.from(process.env.APPLE_PASS_CERT!, "base64"),
+        signerKey: Buffer.from(process.env.APPLE_PASS_KEY!, "base64"),
+        signerKeyPassphrase: process.env.APPLE_PASS_KEY_PASSPHRASE || "",
+      }, {
+        formatVersion: 1,
+        passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
+        teamIdentifier: process.env.APPLE_TEAM_ID!,
+        organizationName: "CulturePass",
+        description: "CulturePass Membership Card",
+        serialNumber: `cp-member-${user.id}`,
+        foregroundColor: "rgb(255,255,255)",
+        backgroundColor: "rgb(22,101,110)",
+        labelColor: "rgb(200,200,200)",
+      });
+
+      pass.type = "generic";
+
+      pass.primaryFields.push({
+        key: "member",
+        label: "MEMBER",
+        value: user.name,
+      });
+
+      pass.secondaryFields.push({
+        key: "cpid",
+        label: "MEMBER ID",
+        value: user.cpid || `CP-${user.id}`,
+      });
+
+      pass.auxiliaryFields.push(
+        {
+          key: "location",
+          label: "LOCATION",
+          value: `${user.city || "AU"}${user.state ? `, ${user.state}` : ""}`,
+        },
+        {
+          key: "since",
+          label: "MEMBER SINCE",
+          value: user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-AU", { month: "short", year: "numeric" }) : "2024",
+        }
+      );
+
+      pass.setBarcodes({
+        message: `culturepass://member/${user.cpid || user.id}`,
+        format: "PKBarcodeFormatQR",
+        messageEncoding: "iso-8859-1",
+      });
+
+      const buffer = pass.getAsBuffer();
+
+      res.set({
+        "Content-Type": "application/vnd.apple.pkpass",
+        "Content-Disposition": `attachment; filename=culturepass-${user.id}.pkpass`,
+      });
+      res.send(buffer);
+    } catch (err: any) {
+      console.error("Apple Wallet error:", err);
+      res.status(500).json({ error: "Failed to generate Apple Wallet pass", message: err.message });
+    }
+  });
+
+  app.get("/api/wallet/google/:userId", async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUser(req.params.userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const hasConfig = process.env.GOOGLE_WALLET_ISSUER_ID &&
+                        process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_KEY;
+
+      if (!hasConfig) {
+        return res.status(503).json({
+          error: "Google Wallet integration is not configured",
+          message: "Google Cloud service account with Wallet API access is required. Set GOOGLE_WALLET_ISSUER_ID and GOOGLE_WALLET_SERVICE_ACCOUNT_KEY environment variables."
+        });
+      }
+
+      const jwt = await import("jsonwebtoken");
+      const serviceAccountKey = JSON.parse(process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_KEY!);
+      const issuerId = process.env.GOOGLE_WALLET_ISSUER_ID!;
+
+      const genericObject = {
+        id: `${issuerId}.culturepass_member_${user.id}`,
+        classId: `${issuerId}.culturepass_membership`,
+        genericType: "GENERIC_TYPE_UNSPECIFIED",
+        hexBackgroundColor: "#16656E",
+        logo: {
+          sourceUri: { uri: "https://culturepass.replit.app/icon.png" },
+          contentDescription: { defaultValue: { language: "en-US", value: "CulturePass" } },
+        },
+        cardTitle: {
+          defaultValue: { language: "en-US", value: "CulturePass" },
+        },
+        subheader: {
+          defaultValue: { language: "en-US", value: "Member Card" },
+        },
+        header: {
+          defaultValue: { language: "en-US", value: user.name },
+        },
+        textModulesData: [
+          { id: "cpid", header: "MEMBER ID", body: user.cpid || `CP-${user.id}` },
+          { id: "location", header: "LOCATION", body: `${user.city || "AU"}${user.state ? `, ${user.state}` : ""}` },
+          { id: "since", header: "MEMBER SINCE", body: user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-AU", { month: "short", year: "numeric" }) : "2024" },
+        ],
+        barcode: {
+          type: "QR_CODE",
+          value: `culturepass://member/${user.cpid || user.id}`,
+        },
+      };
+
+      const claims = {
+        iss: serviceAccountKey.client_email,
+        aud: "google",
+        origins: [],
+        typ: "savetowallet",
+        payload: {
+          genericObjects: [genericObject],
+        },
+      };
+
+      const token = jwt.default.sign(claims, serviceAccountKey.private_key, {
+        algorithm: "RS256",
+      });
+
+      const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
+      res.json({ saveUrl });
+    } catch (err: any) {
+      console.error("Google Wallet error:", err);
+      res.status(500).json({ error: "Failed to generate Google Wallet pass", message: err.message });
+    }
+  });
+
   // ── Health ──
   app.get("/api/health", (_req: Request, res: Response) => {
     res.json({ status: "ok", version: "1.0.0", name: "CulturePass API" });
