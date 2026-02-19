@@ -15,6 +15,8 @@ export interface AuthUser {
   savedEvents: string[] | null;
   memberOf: string[] | null;
   roleGlobal: string | null;
+  replitId: string | null;
+  profileImageUrl: string | null;
   createdAt: string | null;
 }
 
@@ -24,6 +26,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<AuthUser>;
   register: (data: { username: string; password: string; name: string; email?: string; city?: string; state?: string; country?: string; phone?: string }) => Promise<AuthUser>;
+  loginWithReplit: () => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   updateProfile: (data: { name?: string; email?: string; city?: string; state?: string; country?: string; phone?: string; website?: string; socialLinks?: Record<string, string> }) => Promise<AuthUser>;
   refetchUser: () => void;
@@ -55,6 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   }, []);
 
+  const loginWithReplit = useCallback(async (): Promise<AuthUser | null> => {
+    const res = await apiRequest("GET", "/api/auth/replit");
+    const data = await res.json();
+    queryClient.setQueryData(["/api/auth/me"], data);
+    queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/memberships"] });
+    return data;
+  }, []);
+
   const logout = useCallback(async () => {
     await apiRequest("POST", "/api/auth/logout");
     queryClient.setQueryData(["/api/auth/me"], null);
@@ -76,11 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       login,
       register,
+      loginWithReplit,
       logout,
       updateProfile,
       refetchUser: refetch,
     }),
-    [user, isLoading, login, register, logout, updateProfile, refetch]
+    [user, isLoading, login, register, loginWithReplit, logout, updateProfile, refetch]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Modal,
+  Linking,
 } from "react-native";
 import { router, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,14 +20,16 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import { getApiUrl } from "@/lib/query-client";
 
 type AuthMode = "login" | "signup";
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
-  const { login, register } = useAuth();
+  const { login, register, loginWithReplit } = useAuth();
   const navigation = useNavigation();
   const goBack = () => navigation.canGoBack() ? router.back() : router.replace("/");
+  const [replitLoading, setReplitLoading] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -108,6 +111,61 @@ export default function AuthScreen() {
     }
   }, [forgotEmail]);
 
+  const handleReplitLogin = useCallback(async () => {
+    setError("");
+    setReplitLoading(true);
+    try {
+      if (Platform.OS === "web") {
+        const baseUrl = getApiUrl();
+        const loginUrl = new URL("/__repl/auth", baseUrl).toString();
+        window.open(loginUrl, "_blank", "width=400,height=600");
+        const checkAuth = async () => {
+          try {
+            const user = await loginWithReplit();
+            if (user) {
+              if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              goBack();
+              return true;
+            }
+          } catch {}
+          return false;
+        };
+        let attempts = 0;
+        const interval = setInterval(async () => {
+          attempts++;
+          const success = await checkAuth();
+          if (success || attempts > 60) {
+            clearInterval(interval);
+            setReplitLoading(false);
+            if (!success && attempts > 60) {
+              setError("Login timed out. Please try again.");
+            }
+          }
+        }, 2000);
+      } else {
+        const baseUrl = getApiUrl();
+        const loginUrl = new URL("/__repl/auth", baseUrl).toString();
+        await Linking.openURL(loginUrl);
+        setTimeout(async () => {
+          try {
+            const user = await loginWithReplit();
+            if (user) {
+              if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              goBack();
+            }
+          } catch {
+            setError("Replit login failed. Please try again.");
+          } finally {
+            setReplitLoading(false);
+          }
+        }, 3000);
+      }
+    } catch (err: any) {
+      setError(err.message || "Replit login failed");
+      setReplitLoading(false);
+    }
+  }, [loginWithReplit, goBack]);
+
   const toggleMode = () => {
     setMode(m => (m === "login" ? "signup" : "login"));
     setError("");
@@ -146,6 +204,31 @@ export default function AuthScreen() {
         </LinearGradient>
 
         <View style={styles.formContainer}>
+          <Pressable
+            onPress={handleReplitLogin}
+            disabled={replitLoading}
+            style={({ pressed }) => [
+              styles.replitBtn,
+              { opacity: replitLoading ? 0.6 : pressed ? 0.9 : 1 },
+            ]}
+            testID="auth-replit"
+          >
+            {replitLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="logo-react" size={20} color="#fff" />
+                <Text style={styles.replitBtnText}>Sign in with Replit</Text>
+              </>
+            )}
+          </Pressable>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           <View style={styles.modeToggle}>
             <Pressable
               onPress={() => { setMode("login"); setError(""); }}
@@ -612,5 +695,36 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_600SemiBold",
     fontSize: 16,
     color: "#fff",
+  },
+  replitBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#0D101E",
+    paddingVertical: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  replitBtnText: {
+    fontSize: 16,
+    fontFamily: "Poppins_700Bold",
+    color: "#fff",
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.light.borderLight,
+  },
+  dividerText: {
+    paddingHorizontal: 16,
+    fontFamily: "Poppins_500Medium",
+    fontSize: 13,
+    color: Colors.light.textTertiary,
   },
 });
