@@ -144,6 +144,14 @@ export default function CommunityDetailScreen() {
           <Ionicons name="navigate" size={14} color={Colors.light.primary} style={{ marginLeft: "auto" }} />
         </Pressable>
 
+        {org.charityNumber ? (
+          <View style={styles.regRow}>
+            <Ionicons name="ribbon" size={14} color={Colors.light.secondary} />
+            <Text style={styles.regLabel}>Charity Reg:</Text>
+            <Text style={styles.regValue}>{org.charityNumber}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.tagRow}>
           {(org.categories ?? []).map(c => (
             <View key={c} style={styles.tag}>
@@ -287,6 +295,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Poppins_500Medium",
     color: Colors.light.textSecondary,
+  },
+  regRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.light.secondary + "10",
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  regLabel: {
+    fontSize: 12,
+    fontFamily: "Poppins_500Medium",
+    color: Colors.light.secondary,
+  },
+  regValue: {
+    fontSize: 12,
+    fontFamily: "Poppins_700Bold",
+    color: Colors.light.secondary,
   },
   tagRow: {
     flexDirection: "row",

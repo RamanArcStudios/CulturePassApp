@@ -139,6 +139,14 @@ export default function BusinessDetailScreen() {
           <Text style={styles.cpidText}>{business.cpid}</Text>
         </View>
 
+        {business.abn ? (
+          <View style={styles.abnRow}>
+            <Ionicons name="document-text" size={14} color={Colors.light.accent} />
+            <Text style={styles.abnLabel}>ABN:</Text>
+            <Text style={styles.abnValue}>{business.abn}</Text>
+          </View>
+        ) : null}
+
         <Text style={styles.sectionTitle}>About</Text>
         <Text style={styles.description}>{business.description}</Text>
 
@@ -268,6 +276,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Poppins_500Medium",
     color: Colors.light.secondary,
+  },
+  abnRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.light.accent + "15",
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  abnLabel: {
+    fontSize: 12,
+    fontFamily: "Poppins_500Medium",
+    color: Colors.light.accent,
+  },
+  abnValue: {
+    fontSize: 12,
+    fontFamily: "Poppins_700Bold",
+    color: Colors.light.accent,
   },
   sectionTitle: {
     fontSize: 18,

@@ -52,10 +52,12 @@ export default function SubmitScreen() {
   const [bizPhone, setBizPhone] = useState("");
   const [bizWebsite, setBizWebsite] = useState("");
 
+  const [orgCharityNumber, setOrgCharityNumber] = useState("");
   const [orgWebsite, setOrgWebsite] = useState("");
   const [orgFacebook, setOrgFacebook] = useState("");
   const [orgInstagram, setOrgInstagram] = useState("");
 
+  const [bizAbn, setBizAbn] = useState("");
   const [bizFacebook, setBizFacebook] = useState("");
   const [bizInstagram, setBizInstagram] = useState("");
 
@@ -80,6 +82,7 @@ export default function SubmitScreen() {
     setOrgState("NSW");
     setOrgEstablished("");
     setOrgCategories([]);
+    setOrgCharityNumber("");
     setBizName("");
     setBizDescription("");
     setBizCategory("");
@@ -87,6 +90,7 @@ export default function SubmitScreen() {
     setBizState("NSW");
     setBizPhone("");
     setBizWebsite("");
+    setBizAbn("");
     setBizFacebook("");
     setBizInstagram("");
     setOrgWebsite("");
@@ -131,6 +135,7 @@ export default function SubmitScreen() {
         city: orgCity.trim(),
         state: orgState,
         established: orgEstablished.trim() || null,
+        charityNumber: orgCharityNumber.trim() || null,
         categories: orgCategories.length > 0 ? orgCategories : null,
         website: orgWebsite.trim() || null,
         socialLinks: buildSocialLinks(orgFacebook, orgInstagram),
@@ -144,6 +149,7 @@ export default function SubmitScreen() {
         state: bizState,
         phone: bizPhone.trim() || null,
         website: bizWebsite.trim() || null,
+        abn: bizAbn.trim() || null,
         socialLinks: buildSocialLinks(bizFacebook, bizInstagram),
       };
     } else {
@@ -342,6 +348,15 @@ export default function SubmitScreen() {
                   maxLength={4}
                 />
               </FormField>
+              <FormField label="Charity Registration Number">
+                <TextInput
+                  style={styles.input}
+                  value={orgCharityNumber}
+                  onChangeText={setOrgCharityNumber}
+                  placeholder="e.g. ABN or ACNC registration number"
+                  placeholderTextColor={Colors.light.textTertiary}
+                />
+              </FormField>
               <FormField label="Categories">
                 <View style={styles.chipGrid}>
                   {EVENT_CATEGORIES.map((cat) => {
@@ -459,6 +474,17 @@ export default function SubmitScreen() {
               </FormField>
               <FormField label="State">
                 <StateSelector value={bizState} onChange={setBizState} />
+              </FormField>
+              <FormField label="ABN (Australian Business Number)">
+                <TextInput
+                  style={styles.input}
+                  value={bizAbn}
+                  onChangeText={setBizAbn}
+                  placeholder="e.g. 12 345 678 901"
+                  placeholderTextColor={Colors.light.textTertiary}
+                  keyboardType="number-pad"
+                  maxLength={14}
+                />
               </FormField>
               <FormField label="Phone">
                 <TextInput
