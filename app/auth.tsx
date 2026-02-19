@@ -42,6 +42,7 @@ export default function AuthScreen() {
   const [state, setState] = useState("NSW");
   const [country, setCountry] = useState("Australia");
   const [phone, setPhone] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
@@ -76,6 +77,7 @@ export default function AuthScreen() {
           state: state.trim(),
           country: country.trim(),
           phone: phone.trim(),
+          referralCode: referralCode.trim() || undefined,
         });
       }
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -92,7 +94,7 @@ export default function AuthScreen() {
     } finally {
       setLoading(false);
     }
-  }, [mode, username, password, name, email, city, state, country, phone, login, register]);
+  }, [mode, username, password, name, email, city, state, country, phone, referralCode, login, register]);
 
   const handleForgotPassword = useCallback(async () => {
     if (!forgotEmail.trim()) {
@@ -354,6 +356,21 @@ export default function AuthScreen() {
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
                     testID="auth-phone"
+                  />
+                </View>
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Referral Code (optional)</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="gift-outline" size={18} color={Colors.light.textTertiary} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. CP-ABC123"
+                    placeholderTextColor={Colors.light.textTertiary}
+                    value={referralCode}
+                    onChangeText={setReferralCode}
+                    autoCapitalize="characters"
+                    testID="auth-referral"
                   />
                 </View>
               </View>

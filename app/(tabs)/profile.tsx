@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  Share,
+  Clipboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
@@ -60,6 +62,11 @@ export default function ProfileScreen() {
 
   const { data: allOrganisations = [] } = useQuery<Organisation[]>({
     queryKey: ["/api/organisations"],
+  });
+
+  const { data: referralData } = useQuery<{ count: number; referrals: Array<{ name: string; joinedAt: string }> }>({
+    queryKey: ["/api/referrals/my"],
+    enabled: isAuthenticated,
   });
 
   const savedEventIds: string[] = user?.savedEvents ?? [];
@@ -138,6 +145,35 @@ export default function ProfileScreen() {
       },
     ]);
   };
+
+  const handleShareReferral = useCallback(async () => {
+    const code = user?.referralCode;
+    if (!code) return;
+    const url = `https://culturepass.replit.app/auth?ref=${code}`;
+    const message = `Join CulturePass with my referral code ${code}! ${url}`;
+    try {
+      if (Platform.OS === "web") {
+        if (typeof navigator !== "undefined" && navigator.share) {
+          await navigator.share({ title: "Join CulturePass", text: message, url });
+        } else if (typeof navigator !== "undefined" && navigator.clipboard) {
+          await navigator.clipboard.writeText(message);
+          Alert.alert("Copied", "Referral link copied to clipboard");
+        }
+      } else {
+        await Share.share({ message });
+      }
+    } catch {}
+  }, [user?.referralCode]);
+
+  const handleCopyCode = useCallback(() => {
+    const code = user?.referralCode;
+    if (!code) return;
+    if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(code);
+    }
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert("Copied", `Referral code ${code} copied to clipboard`);
+  }, [user?.referralCode]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -585,6 +621,48 @@ export default function ProfileScreen() {
               <Text style={styles.emptyText}>
                 Join organisations to connect with your community
               </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {user?.referralCode && (
+        <View style={styles.referralSection}>
+          <View style={styles.referralHeader}>
+            <Ionicons name="gift" size={20} color={Colors.light.primary} />
+            <Text style={styles.referralTitle}>Invite Friends</Text>
+          </View>
+          <Text style={styles.referralSubtext}>Share your referral code and invite friends to CulturePass</Text>
+          <View style={styles.referralCodeBox}>
+            <Text style={styles.referralCodeLabel}>Your Code</Text>
+            <View style={styles.referralCodeRow}>
+              <Text style={styles.referralCodeValue}>{user.referralCode}</Text>
+              <Pressable onPress={handleCopyCode} style={styles.referralCopyBtn}>
+                <Ionicons name="copy-outline" size={16} color={Colors.light.primary} />
+              </Pressable>
+            </View>
+          </View>
+          <Pressable onPress={handleShareReferral} style={({ pressed }) => [styles.referralShareBtn, { opacity: pressed ? 0.9 : 1 }]}>
+            <LinearGradient colors={[Colors.light.primary, Colors.light.primaryDark]} style={styles.referralShareGradient}>
+              <Ionicons name="share-social" size={18} color="#fff" />
+              <Text style={styles.referralShareText}>Share Invite Link</Text>
+            </LinearGradient>
+          </Pressable>
+          {referralData && referralData.count > 0 && (
+            <View style={styles.referralStats}>
+              <View style={styles.referralStatBadge}>
+                <Ionicons name="people" size={14} color={Colors.light.secondary} />
+                <Text style={styles.referralStatText}>{referralData.count} friend{referralData.count !== 1 ? "s" : ""} joined</Text>
+              </View>
+              {referralData.referrals.slice(0, 3).map((r, i) => (
+                <View key={i} style={styles.referralUser}>
+                  <View style={styles.referralUserAvatar}>
+                    <Text style={styles.referralUserInitial}>{(r.name || "U").charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <Text style={styles.referralUserName} numberOfLines={1}>{r.name}</Text>
+                  <Text style={styles.referralUserDate}>{new Date(r.joinedAt).toLocaleDateString()}</Text>
+                </View>
+              ))}
             </View>
           )}
         </View>
@@ -1190,5 +1268,130 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Poppins_600SemiBold",
     color: Colors.light.error,
+  },
+  referralSection: {
+    marginTop: 24,
+    marginHorizontal: 20,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  referralHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  referralTitle: {
+    fontSize: 18,
+    fontFamily: "Poppins_700Bold",
+    color: Colors.light.text,
+  },
+  referralSubtext: {
+    fontSize: 13,
+    fontFamily: "Poppins_400Regular",
+    color: Colors.light.textSecondary,
+    marginBottom: 16,
+  },
+  referralCodeBox: {
+    backgroundColor: Colors.light.primary + "08",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.light.primary + "20",
+    marginBottom: 14,
+  },
+  referralCodeLabel: {
+    fontSize: 11,
+    fontFamily: "Poppins_500Medium",
+    color: Colors.light.textTertiary,
+    textTransform: "uppercase" as const,
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  referralCodeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  referralCodeValue: {
+    fontSize: 22,
+    fontFamily: "Poppins_700Bold",
+    color: Colors.light.primary,
+    letterSpacing: 2,
+  },
+  referralCopyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.light.primary + "12",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  referralShareBtn: {
+    borderRadius: 14,
+    overflow: "hidden",
+    marginBottom: 14,
+  },
+  referralShareGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  referralShareText: {
+    fontSize: 15,
+    fontFamily: "Poppins_600SemiBold",
+    color: "#fff",
+  },
+  referralStats: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.borderLight,
+    paddingTop: 14,
+  },
+  referralStatBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  referralStatText: {
+    fontSize: 13,
+    fontFamily: "Poppins_600SemiBold",
+    color: Colors.light.secondary,
+  },
+  referralUser: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 6,
+  },
+  referralUserAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.light.primary + "15",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  referralUserInitial: {
+    fontSize: 13,
+    fontFamily: "Poppins_700Bold",
+    color: Colors.light.primary,
+  },
+  referralUserName: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Poppins_500Medium",
+    color: Colors.light.text,
+  },
+  referralUserDate: {
+    fontSize: 11,
+    fontFamily: "Poppins_400Regular",
+    color: Colors.light.textTertiary,
   },
 });
